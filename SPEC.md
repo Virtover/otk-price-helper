@@ -68,7 +68,7 @@ Min profit components are **added**: `c·p% + P`.
 
 ### 4.2 Discounts (stack multiplicatively)
 
-Each discount can be entered as **% discount** or as **price multiplier** (toggle per section;
+Each discount can be entered as **% discount** or as **price multiplier** (one toggle for all discounts and the sale factor;
 `5 %` ⇔ `×0.95`). Precision: 0.01 % (multiplier: 4 decimals) — more precision is rejected.
 
 **Package tiers** (quantity ≥ threshold → tier discount). An implicit tier "1 unit, 0 %" always exists.
@@ -215,7 +215,7 @@ pre-peak 1–3, sale) = **125 rows**.
 - **Matrix** (default): rows = package tiers, columns = customer types, selector = month type;
   each cell shows unit price (basis) and package total; colour = status.
 - **Flat table**: all rows, sortable/filterable — identical to CSV export.
-- **Summary header**: `K`, `F`, `B` net/gross, retail markup over `c`, number of warnings.
+- **Summary header**: `K`, `F`, `B` net/gross, retail profit as % of `c`.
 - **Breakdown panel** ("why this price?"): click a row → waterfall
   `c → +handling % → +fixed handling → K → +min profit → F → ÷M_deep → B → ×discounts → rounding → VAT → result`.
 
@@ -225,6 +225,8 @@ pre-peak 1–3, sale) = **125 rows**.
 
 - Cells editable: unit price (basis column) of any row; base price `B` in the summary header.
 - Unit **net** price is the editable one; gross is always derived.
+- Manual edits are cleared (with a notice) when purchase cost, quantity or settings change —
+  they refer to concrete prices that would otherwise silently become wrong.
 - Edited cell = **override**: highlighted, lockable, revertible ("reset to calculated").
 - Checkbox **"smart updates"** (default on):
   - editing a unit price → recompute that row's totals, profit, effective discount, status;
@@ -245,7 +247,7 @@ pre-peak 1–3, sale) = **125 rows**.
 | No eligible tier besides 1 unit | info | "No package discounts apply for N = …" |
 | `⌈H/N⌉ > c` (fixed handling dominates, small N) | warning | "Fixed handling is X % of unit cost" |
 | Rounding of `H/N` added > 0 | info (breakdown only) | "Rounded up by 0.00X PLN to avoid loss" |
-| Retail markup over `c` > 100 % | info | "Retail price is X % above purchase cost because of deep discounts" |
+| Retail profit (1 unit, first customer, peak) > 100 % of `c` | info | "Retail profit is X % of purchase cost because the deepest discounts must still reach the minimum profit" |
 | Very large values (unit price > 10 000 000 PLN) | error | "Value out of supported range" |
 | Config file invalid / newer version | error | lists offending keys; current config unchanged |
 | Config file older version | info | migrated automatically |
@@ -285,7 +287,6 @@ JSON, with schema version for migration:
   "handling": { "percentBp": 1000, "fixedGr": 50000 },
   "minProfit": { "percentBp": 1000, "fixedGr": 0 },
   "vatBp": 2300,
-  "stacking": "multiplicative",
   "packages": [
     { "qty": 50, "discountBp": 200 },
     { "qty": 100, "discountBp": 400 },
@@ -325,7 +326,7 @@ Validated with a schema on load; invalid files never partially apply.
 | Concern | Choice |
 |---|---|
 | Pricing core | pure TS module, no UI deps; BigInt rationals (`core/rational.ts`) |
-| Table / matrix | TanStack Table |
+| Table / matrix | Mantine `Table` (filter + sort hand-rolled; 125 rows need no grid library) |
 | UI kit | Mantine |
 | Validation | Zod (inputs, config file) |
 | i18n | i18next |
@@ -381,7 +382,7 @@ Input: `c = 10.00 PLN`, `N = 1000`.
 | min profit | 10.00 · 10 % + 0 = 1.00 |
 | `F` | 12.50 |
 | `M_deep` | 0.92 · 0.86 · 0.70 = 0.55384 |
-| `B` | ⌈12.50 / 0.55384⌉ = ⌈22.5697…⌉ = **22.57 net** (retail markup 110.7 %) |
+| `B` | ⌈12.50 / 0.55384⌉ = ⌈22.5697…⌉ = **22.57 net** (retail profit 110.7 % of `c`) |
 
 Selected rows:
 
