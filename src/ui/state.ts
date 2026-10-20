@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from 'react';
 import { DEFAULT_CONFIG } from '../config/defaults';
-import { parseConfigFile, serializeConfig } from '../config/io';
+import { configKey, parseConfigFile, serializeConfig } from '../config/io';
 import type { Locale } from '../core/money';
 import type { Config, Overrides } from '../core/types';
 import { readStored, writeStored } from '../lib/storage';
@@ -117,10 +117,12 @@ export function initialState(): AppState {
   const loaded = stored.config ? parseConfigFile(stored.config) : undefined;
   const config = loaded?.ok ? loaded.config : structuredClone(DEFAULT_CONFIG);
   const lang: Locale = stored.lang === 'en' ? 'en' : 'pl';
+  // The snapshot may come from an older app version: migrate it like the config itself.
+  const snapshot = stored.savedSnapshot ? parseConfigFile(stored.savedSnapshot) : undefined;
   return {
     lang,
     config,
-    savedSnapshot: stored.savedSnapshot ?? serializeConfig(config),
+    savedSnapshot: serializeConfig(snapshot?.ok ? snapshot.config : config),
     input: { name: '', cost: '', qty: '', maxPrice: '', ...stored.input },
     overrides: NO_OVERRIDES,
     smartUpdates: stored.smartUpdates ?? true,
@@ -149,5 +151,14 @@ export function useAppState() {
   return [state, dispatch] as const;
 }
 
-export const isDirty = (state: AppState) => serializeConfig(state.config) !== state.savedSnapshot;
+const DEFAULT_KEY = configKey(DEFAULT_CONFIG);
+
+/**
+ * Settings differ from the last saved / loaded file. The defaults never count as
+ * unsaved — they can always be restored with one click, so nothing would be lost.
+ */
+export function isDirty(state: AppState): boolean {
+  const key = configKey(state.config);
+  return key !== DEFAULT_KEY && key !== configKey(JSON.parse(state.savedSnapshot));
+}
 export { countOverrides };

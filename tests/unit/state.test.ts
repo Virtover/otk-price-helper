@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, cloneConfig } from '../../src/config/defaults';
 import { serializeConfig } from '../../src/config/io';
-import { type AppState, isDirty, reducer } from '../../src/ui/state';
+import { type AppState, initialState, isDirty, reducer } from '../../src/ui/state';
 
 const base: AppState = {
   lang: 'pl',
@@ -76,5 +76,46 @@ describe('app state', () => {
     expect(reducer(base, { type: 'setShowDetails', value: true }).showDetails).toBe(true);
     expect(reducer(base, { type: 'setDialect', value: 'intl' }).dialect).toBe('intl');
     expect(reducer(edited, { type: 'resetOverrides' }).overrides).toEqual({ rows: {} });
+  });
+});
+
+describe('unsaved indicator', () => {
+  const custom = cloneConfig(DEFAULT_CONFIG);
+  custom.vatBp = 800;
+  const savedCustom = reducer(base, { type: 'loadConfig', config: custom });
+
+  it('never counts the defaults as unsaved', () => {
+    const reset = reducer(savedCustom, { type: 'setConfig', config: cloneConfig(DEFAULT_CONFIG) });
+    expect(isDirty(reset)).toBe(false);
+  });
+
+  it('ignores key order of a hand-edited file', () => {
+    const reordered = { ...custom, vatBp: 800 };
+    const snapshot = JSON.stringify(Object.fromEntries(Object.entries(reordered).reverse()));
+    expect(isDirty({ ...savedCustom, savedSnapshot: snapshot })).toBe(false);
+  });
+
+  it('still reports real changes against the saved file', () => {
+    const changed = cloneConfig(custom);
+    changed.vatBp = 500;
+    expect(isDirty(reducer(savedCustom, { type: 'setConfig', config: changed }))).toBe(true);
+  });
+});
+
+describe('state remembered by an older app version', () => {
+  it('migrates a v1 snapshot so unchanged settings are not shown as unsaved', () => {
+    const v1 = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 1, vatBp: 800, months: { peakBp: 0, prePeakBp: [1000, 2000, 3000] } });
+    const store: Record<string, string> = {
+      'otk-price-helper.state.v1': JSON.stringify({ config: v1, savedSnapshot: v1 }),
+    };
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null });
+    try {
+      const state = initialState();
+      expect(state.config.schemaVersion).toBe(2);
+      expect(state.config.vatBp).toBe(800);
+      expect(isDirty(state)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

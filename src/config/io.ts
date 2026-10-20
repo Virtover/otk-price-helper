@@ -65,6 +65,21 @@ export function parseConfigFile(text: string): LoadResult {
   };
 }
 
+/** Canonical form for comparing configs: key order (e.g. from a hand-edited file) does not matter. */
+export function configKey(config: unknown): string {
+  const canonical = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(canonical)
+      : v !== null && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.keys(v)
+              .sort()
+              .map((k) => [k, canonical((v as Record<string, unknown>)[k])]),
+          )
+        : v;
+  return JSON.stringify(canonical(config));
+}
+
 export function serializeConfig(config: Config): string {
   return JSON.stringify(config, null, 2) + '\n';
 }
