@@ -7,11 +7,12 @@ const base: AppState = {
   lang: 'pl',
   config: cloneConfig(DEFAULT_CONFIG),
   savedSnapshot: serializeConfig(DEFAULT_CONFIG),
-  input: { name: '', cost: '10', qty: '1000' },
+  input: { name: '', cost: '10', qty: '1000', maxPrice: '' },
   overrides: { rows: {} },
   smartUpdates: true,
   showDetails: false,
   dialect: 'pl',
+  editIndividually: false,
   clearedOverrides: 0,
 };
 
@@ -56,7 +57,20 @@ describe('app state', () => {
     expect(isDirty(reducer(s, { type: 'loadConfig', config: changed }))).toBe(false);
   });
 
+  it('replaces all overrides at once and counts the sale base', () => {
+    const s = reducer(base, { type: 'setOverrides', overrides: { rows: { a: 1n }, base: 2n, saleBase: 3n } });
+    expect(s.overrides.saleBase).toBe(3n);
+    expect(reducer(s, { type: 'setInput', field: 'cost', value: '12' }).clearedOverrides).toBe(3);
+  });
+
+  it('keeps overrides when only the price limit changes', () => {
+    const s = reducer(edited, { type: 'setInput', field: 'maxPrice', value: '20' });
+    expect(s.overrides.base).toBe(7n);
+    expect(s.input.maxPrice).toBe('20');
+  });
+
   it('switches simple flags', () => {
+    expect(reducer(base, { type: 'setEditIndividually', value: true }).editIndividually).toBe(true);
     expect(reducer(base, { type: 'setLang', lang: 'en' }).lang).toBe('en');
     expect(reducer(base, { type: 'setSmartUpdates', value: false }).smartUpdates).toBe(false);
     expect(reducer(base, { type: 'setShowDetails', value: true }).showDetails).toBe(true);

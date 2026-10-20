@@ -1,8 +1,9 @@
 import { Badge, Box, Group, ScrollArea, SegmentedControl, Stack, Table, Text, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoney } from '../../core/money';
-import { rowKey } from '../../core/pricing';
-import { MONTH_TYPES, type Config, type MonthType, type PriceList, type PriceRow } from '../../core/types';
+import { monthIds, rowKey } from '../../core/pricing';
+import type { Config, MonthType, PriceList, PriceRow } from '../../core/types';
+import { monthLabel } from '../format';
 import { STATUS_COLOR, statusBg } from './status';
 
 interface Props {
@@ -28,10 +29,10 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
           value={month}
           onChange={(v) => onMonth(v as MonthType)}
           data-testid="month-selector"
-          data={MONTH_TYPES.map((m) => ({
-            value: m,
-            label: m === currentMonth ? `${t(`months.${m}`)} • ${t('months.current')}` : t(`months.${m}`),
-          }))}
+          data={monthIds(config).map((m) => {
+            const label = monthLabel(config, m, lang, t);
+            return { value: m, label: m === currentMonth ? `${label} • ${t('months.current')}` : label };
+          })}
         />
       </ScrollArea>
       <Text size="xs" c="dimmed">
@@ -70,14 +71,20 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                         w="100%"
                         px="sm"
                         py={4}
-                        className="price-cell"
+                        className={row.aboveMax ? 'price-cell above-max' : 'price-cell'}
                         onClick={() => onSelect(row)}
                         data-testid={`cell-${row.key}`}
                         data-status={row.status}
+                        data-above-max={row.aboveMax || undefined}
                         style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
                       >
                         <Text size="sm">
-                          <Text span fw={700} inherit>
+                          {row.aboveMax && (
+                            <Text span c="orange.7" fw={700} inherit>
+                              ▲{' '}
+                            </Text>
+                          )}
+                          <Text span fw={700} inherit c={row.aboveMax ? 'orange.7' : undefined}>
                             {formatMoney(row.netUnit, lang)}
                           </Text>
                           {!tier.implicit && ` / ${formatMoney(row.netTotal, lang)}`}
@@ -105,6 +112,11 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
             {t(`status.${s}`)}
           </Badge>
         ))}
+        {list.input.maxPriceGr !== undefined && (
+          <Badge size="sm" variant="outline" color="orange">
+            ▲ {t('status.aboveMax')}
+          </Badge>
+        )}
         <Box style={{ flex: 1 }} />
         <Text size="xs" c="dimmed">
           {t('matrix.clickHint')}

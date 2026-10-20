@@ -180,17 +180,35 @@ describe('rejections', () => {
   });
 
   it('rejects configs with errors', () => {
-    const r = calculate(input(1000, 1000), config((c) => (c.months.prePeakBp = [1000, 2000, 10000])));
+    const r = calculate(input(1000, 1000), config((c) => (c.months[3]!.discountBp = 10000)));
     expect(r.ok).toBe(false);
   });
 
   it('rejects results out of the supported range', () => {
     const r = calculate(
       input(999_999_999, 1),
-      config((c) => (c.months.prePeakBp = [1000, 2000, 9900])),
+      config((c) => (c.months[3]!.discountBp = 9900)),
     );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(codes(r.issues)).toContain('outOfRange');
+  });
+});
+
+describe('custom month types', () => {
+  it('prices every month type the user defines and anchors on the deepest one', () => {
+    const cfg = config((c) => {
+      c.months = [
+        { id: 'summer', label: { pl: 'Szczyt letni', en: 'Summer peak' }, discountBp: 0 },
+        { id: 'winter', label: { pl: 'Szczyt zimowy', en: 'Winter peak' }, discountBp: 0 },
+        { id: 'quiet', label: { pl: 'Cisza', en: 'Quiet' }, discountBp: 1500 },
+      ];
+      c.calendar = Array(12).fill('summer');
+    });
+    const l = list(input(1000, 1000), cfg);
+    expect(l.rows).toHaveLength(5 * 5 * 4);
+    expect(l.deepest.month).toBe('quiet');
+    expect(row(l, '1|retail|summer').netUnit).toBe(row(l, '1|retail|winter').netUnit);
+    expect(row(l, '300|w4|quiet').status).toBe('anchor');
   });
 });
 
@@ -216,7 +234,7 @@ describe('edge cases', () => {
   });
 
   it('uses the configured peak discount', () => {
-    const l = list(input(1000, 1000), config((c) => (c.months.peakBp = 500)));
+    const l = list(input(1000, 1000), config((c) => (c.months[0]!.discountBp = 500)));
     expect(row(l, '1|retail|peak').netUnit).toBe((l.base * 95n + 99n) / 100n);
   });
 });

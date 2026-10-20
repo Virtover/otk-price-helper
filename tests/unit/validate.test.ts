@@ -45,17 +45,26 @@ describe('validateConfig', () => {
     expect(find((c) => (c.customers[1]!.label.en = ' '), 'customerLabelEmpty')).toHaveLength(1);
   });
 
-  it('errors on decreasing months, warns on equal', () => {
-    expect(find((c) => (c.months.prePeakBp = [1000, 500, 3000]), 'monthOrderError')[0]?.path).toBe(
-      'months.prePeakBp.1',
-    );
-    expect(find((c) => (c.months.peakBp = 1000), 'monthOrderEqual')).toHaveLength(1);
+  it('allows month types in any order and with equal discounts', () => {
+    expect(issuesOf((c) => c.months.reverse())).toEqual([]);
+    expect(issuesOf((c) => (c.months[1]!.discountBp = 0))).toEqual([]);
+  });
+
+  it('errors on missing, duplicate, reserved or unnamed month types', () => {
+    expect(find((c) => (c.months = []), 'monthNone')).toHaveLength(1);
+    expect(find((c) => (c.months[1]!.id = 'peak'), 'monthDuplicateId')[0]?.path).toBe('months.1.label');
+    expect(find((c) => (c.months[0]!.id = 'sale'), 'monthDuplicateId')).toHaveLength(1);
+    expect(find((c) => (c.months[2]!.label.pl = ''), 'monthLabelEmpty')).toHaveLength(1);
+  });
+
+  it('errors when the calendar refers to an unknown month type', () => {
+    expect(find((c) => (c.calendar[4] = 'gone'), 'calendarUnknown')[0]?.path).toBe('calendar.4');
   });
 
   it('errors on discounts of 100 % or more and on negatives', () => {
     expect(find((c) => (c.customers[4]!.discountBp = 10000), 'discountTooHigh')).toHaveLength(1);
     expect(find((c) => (c.packages[0]!.discountBp = -1), 'discountNegative')).toHaveLength(1);
-    expect(find((c) => (c.months.peakBp = 0.5), 'invalidNumber')).toHaveLength(1);
+    expect(find((c) => (c.months[0]!.discountBp = 0.5), 'invalidNumber')).toHaveLength(1);
   });
 
   it('checks costs and profit ranges', () => {

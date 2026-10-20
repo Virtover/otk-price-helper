@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { StepValue } from '../core/explain';
 import { type Locale, formatMoney, formatPercent, formatScaled } from '../core/money';
 import { type Rat, eq, mul, rat, roundHalf } from '../core/rational';
-import type { CustomerType, Issue, IssueParam } from '../core/types';
+import { type Config, type CustomerType, type Issue, type IssueParam, SALE } from '../core/types';
 
 const NBSP = ' ';
 
@@ -59,6 +59,12 @@ export function issueMessage(issue: Issue, lang: Locale, t: TFunction): string {
 
 export function customerLabel(customers: CustomerType[], id: string, lang: Locale): string {
   return customers.find((c) => c.id === id)?.label[lang] ?? id;
+}
+
+/** Name of a month type id in the UI language (the sale type is built in). */
+export function monthLabel(config: Config, id: string, lang: Locale, t: TFunction): string {
+  if (id === SALE) return t('months.sale');
+  return config.months.find((m) => m.id === id)?.label[lang] ?? id;
 }
 
 /** DOM id of the input editing a config/input path ("packages.2.qty" → "field-packages-2-qty"). */

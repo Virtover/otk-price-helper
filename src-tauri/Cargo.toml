@@ -1,6 +1,6 @@
 [package]
 name = "otk-price-helper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Price setting helper for an online shop"
 edition = "2021"
 

@@ -1,4 +1,4 @@
-import type { Config, Issue, IssueParam, ProductInput } from './types';
+import { type Config, type Issue, type IssueParam, type ProductInput, SALE } from './types';
 
 export const MAX_COST_GR = 1_000_000_000n; // 10 000 000 PLN
 export const MAX_QTY = 10_000_000n;
@@ -97,17 +97,21 @@ export function validateConfig(config: Config): Issue[] {
     ),
   );
 
-  // Months: peak ≤ pre-peak 1 ≤ pre-peak 2 ≤ pre-peak 3.
-  const months: LadderStep[] = [
-    { bp: config.months.peakBp, path: 'months.peakBp', name: { key: 'months.peak' } },
-    ...config.months.prePeakBp.map((bp, i) => ({
-      bp,
-      path: `months.prePeakBp.${i}`,
-      name: { key: `months.pre${i + 1}` },
-    })),
-  ];
-  months.forEach((m) => issues.push(...discountIssues(m.bp, m.path)));
-  issues.push(...ladderIssues(months, 'monthOrder'));
+  // Month types: free names and order (several peaks may share a discount), unique ids.
+  if (config.months.length === 0) {
+    issues.push({ level: 'error', code: 'monthNone', path: 'months' });
+  }
+  const monthIds = new Set<string>([SALE]);
+  config.months.forEach((m, i) => {
+    const path = `months.${i}.label`;
+    if (monthIds.has(m.id)) issues.push({ level: 'error', code: 'monthDuplicateId', path });
+    monthIds.add(m.id);
+    if (!m.label.pl.trim() || !m.label.en.trim()) issues.push({ level: 'error', code: 'monthLabelEmpty', path });
+    issues.push(...discountIssues(m.discountBp, `months.${i}.discountBp`));
+  });
+  config.calendar.forEach((m, i) => {
+    if (!monthIds.has(m)) issues.push({ level: 'error', code: 'calendarUnknown', path: `calendar.${i}` });
+  });
 
   if (!isInt(config.sale.factorBp) || config.sale.factorBp <= 0 || config.sale.factorBp > MAX_PERCENT_BP) {
     issues.push({ level: 'error', code: 'saleFactorRange', path: 'sale.factorBp' });
@@ -122,6 +126,9 @@ export function validateInput(input: ProductInput): Issue[] {
   else if (input.costGr > MAX_COST_GR) issues.push({ level: 'error', code: 'valueTooHigh', path: 'input.costGr' });
   if (input.qty < 1n) issues.push({ level: 'error', code: 'qtyNonPositive', path: 'input.qty' });
   else if (input.qty > MAX_QTY) issues.push({ level: 'error', code: 'valueTooHigh', path: 'input.qty' });
+  if (input.maxPriceGr !== undefined && input.maxPriceGr <= 0n) {
+    issues.push({ level: 'error', code: 'maxPriceNonPositive', path: 'input.maxPriceGr' });
+  }
   return issues;
 }
 

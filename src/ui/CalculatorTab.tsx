@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { INTERNATIONAL, POLISH_EXCEL, type CsvLabels, priceListCsv } from '../core/csv';
 import { exportFileName } from '../core/filename';
 import { parseInteger, parseMoney } from '../core/money';
-import { calculate } from '../core/pricing';
+import { calculate, monthIds, shiftOverrides } from '../core/pricing';
 import type { MonthType, PriceRow, ProductInput } from '../core/types';
 import { confirmDialog, saveTextFile } from '../lib/fileio';
 import { Breakdown } from './components/Breakdown';
@@ -13,7 +13,7 @@ import { PriceMatrix } from './components/PriceMatrix';
 import { PriceTable } from './components/PriceTable';
 import { StepHeader } from './components/StepHeader';
 import { Summary } from './components/Summary';
-import { customerLabel, fieldId, issueMessage } from './format';
+import { customerLabel, fieldId, issueMessage, monthLabel } from './format';
 import { type Action, type AppState, countOverrides } from './state';
 
 interface Props {
@@ -25,21 +25,28 @@ interface Props {
 export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
   const { t } = useTranslation();
   const { lang, config, input } = state;
-  const currentMonth = config.calendar[new Date().getMonth()] ?? 'peak';
-  const [month, setMonth] = useState<MonthType>(currentMonth);
+  const ids = monthIds(config);
+  const calendarMonth = config.calendar[new Date().getMonth()];
+  const currentMonth = calendarMonth && ids.includes(calendarMonth) ? calendarMonth : ids[0]!;
+  const [chosenMonth, setMonth] = useState<MonthType>(currentMonth);
+  // A month type removed in settings falls back to the current one.
+  const month = ids.includes(chosenMonth) ? chosenMonth : currentMonth;
   const [selectedKey, setSelectedKey] = useState<string>();
   const [nameError, setNameError] = useState(false);
   const [exportMessage, setExportMessage] = useState<{ ok: boolean; text: string }>();
 
   const cost = parseMoney(input.cost);
   const qty = parseInteger(input.qty);
+  const maxPrice = parseMoney(input.maxPrice);
+  // The limit is optional: empty or invalid text simply means "no limit" (invalid text gets a field error).
+  const maxPriceGr = maxPrice.ok && maxPrice.value > 0n ? maxPrice.value : undefined;
   const product: ProductInput | undefined =
-    cost.ok && qty.ok ? { name: input.name, costGr: cost.value, qty: qty.value } : undefined;
+    cost.ok && qty.ok ? { name: input.name, costGr: cost.value, qty: qty.value, maxPriceGr } : undefined;
 
   // product is a fresh object each render; recalculate only when its source strings change.
   const result = useMemo(
     () => (product ? calculate(product, config, state.overrides, { smartUpdates: state.smartUpdates }) : undefined),
-    [input.cost, input.qty, config, state.overrides, state.smartUpdates],
+    [input.cost, input.qty, maxPriceGr, config, state.overrides, state.smartUpdates],
   );
   const allIssues = result ? (result.ok ? result.list.issues : result.issues) : [];
   const fieldError = (path: string, parsed: ReturnType<typeof parseMoney>, raw: string) => {
@@ -55,7 +62,27 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
   const setInput = (field: keyof AppState['input']) => (e: React.ChangeEvent<HTMLInputElement>) =>
     dispatch({ type: 'setInput', field, value: e.currentTarget.value });
 
-  const editRow = (key: string, value?: bigint) => dispatch({ type: 'setRowOverride', key, value });
+  /** Individually: only this row changes. Otherwise the row's base shifts and all rows sharing it follow. */
+  const editRow = (key: string, value?: bigint) => {
+    const row = list?.rows.find((r) => r.key === key);
+    if (value === undefined || state.editIndividually || !row) {
+      dispatch({ type: 'setRowOverride', key, value });
+    } else {
+      dispatch({ type: 'setOverrides', overrides: shiftOverrides(row, value, state.overrides) });
+    }
+  };
+  const resetShift = (sale: boolean) =>
+    sale
+      ? dispatch({ type: 'setOverrides', overrides: { ...state.overrides, saleBase: undefined } })
+      : dispatch({ type: 'setBaseOverride' });
+  const maxPriceError =
+    input.maxPrice.trim() === ''
+      ? undefined
+      : !maxPrice.ok
+        ? t(`parse.${maxPrice.error}`)
+        : maxPrice.value <= 0n
+          ? t('issues.maxPriceNonPositive')
+          : undefined;
 
   async function exportCsv() {
     if (!list) return;
@@ -72,8 +99,11 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     const labels: CsvLabels = {
       header: (c) => t(`columns.${c}`),
       customer: (id) => customerLabel(config.customers, id, lang),
-      month: (m) => t(`months.${m}`),
-      status: (r: PriceRow) => t(`status.${r.status}`) + (r.stale ? ` (${t('status.stale')})` : ''),
+      month: (m) => monthLabel(config, m, lang, t),
+      status: (r: PriceRow) =>
+        t(`status.${r.status}`) +
+        (r.stale ? ` (${t('status.stale')})` : '') +
+        (r.aboveMax ? ` (${t('status.aboveMax')})` : ''),
     };
     const csv = priceListCsv(list, labels, state.dialect === 'pl' ? POLISH_EXCEL : INTERNATIONAL);
     try {
@@ -127,6 +157,17 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             rightSection={<Text size="xs">{t('common.pcs')}</Text>}
             error={fieldError('input.qty', qty, input.qty)}
             w={220}
+          />
+          <TextInput
+            id={fieldId('input.maxPriceGr')}
+            label={t('input.maxPrice')}
+            description={t('input.maxPriceHint')}
+            value={input.maxPrice}
+            onChange={setInput('maxPrice')}
+            inputMode="decimal"
+            rightSection={<Text size="xs">{lang === 'pl' ? 'zł' : 'PLN'}</Text>}
+            error={maxPriceError}
+            w={250}
           />
           </Group>
         </Paper>
@@ -237,6 +278,11 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
               right={
                   <Group gap="md">
                     <Checkbox
+                      label={t('edit.individually')}
+                      checked={state.editIndividually}
+                      onChange={(e) => dispatch({ type: 'setEditIndividually', value: e.currentTarget.checked })}
+                    />
+                    <Checkbox
                       label={t('details.smartUpdates')}
                       description={t('details.smartUpdatesHint')}
                       checked={state.smartUpdates}
@@ -272,6 +318,9 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             lang={lang}
             onClose={() => setSelectedKey(undefined)}
             onEdit={editRow}
+            individually={state.editIndividually}
+            onIndividually={(value) => dispatch({ type: 'setEditIndividually', value })}
+            onResetShift={resetShift}
           />
         </>
       )}

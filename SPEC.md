@@ -1,6 +1,6 @@
 # OTK Price Helper — Specification
 
-Status: **draft v0.3** · Date: 2026-10-20
+Status: **draft v0.4** · Date: 2026-10-20
 Items marked **[ASSUMPTION]** are decisions taken by default and still open for confirmation (see §15).
 
 ---
@@ -33,7 +33,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | mnożnik | multiplier | `m` | `1 − discount%` |
 | pakiet | package tier | — | quantity threshold with a discount |
 | rodzaj klienta | customer type | — | retail / wholesale 1–4 |
-| typ miesiąca | month type | — | peak / pre-peak 1–3 / sale |
+| typ miesiąca | month type | — | user-defined list (default: peak, pre-peak 1–3) + built-in sale |
 | WYPRZEDAŻ | sale | `s` | sale price factor, applied to `K` |
 
 ---
@@ -45,6 +45,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | Product name | text | required; used in export filename (forbidden filename chars stripped) |
 | Purchase cost `c` | PLN, 2 decimals | `> 0`; accepts `12,50` and `12.50` |
 | Quantity `N` | integer | `≥ 1` |
+| Maximum price (optional) | PLN, net per unit | `> 0`; empty = no limit. Rows whose net unit price exceeds it are highlighted (orange frame, ▲) and counted in a warning; a limit below the minimum price `F` gets its own warning. It never changes any price. |
 
 Results recalculate live on every valid change (debounced).
 
@@ -90,15 +91,20 @@ Each discount can be entered as **% discount** or as **price multiplier** (one t
 | hurt 3 | 11 % |
 | hurt 4 | 14 % |
 
-**Month types**
+**Month types** (editable list like customer types: add / remove / rename in PL and EN / reorder;
+free order, several types may share a discount, e.g. summer and winter peak)
 
-| Type | Default |
+| Type (default) | Default discount |
 |---|---|
-| peak | 0 % |
-| pre-peak 1 | 10 % |
-| pre-peak 2 | 20 % |
-| pre-peak 3 | 30 % |
-| WYPRZEDAŻ (sale) | special, see 4.3 |
+| Szczyt / Peak | 0 % |
+| Przedszczyt 1 / Pre-peak 1 | 10 % |
+| Przedszczyt 2 / Pre-peak 2 | 20 % |
+| Przedszczyt 3 / Pre-peak 3 | 30 % |
+| WYPRZEDAŻ (sale) | built in, not removable — see 4.3 |
+
+The **first** month type is the reference for the maximum price card and the retail profit
+(1 unit · first customer type · first month type). Removing a month type moves calendar months
+that used it to the first remaining type.
 
 Optional (advanced): 12-month calendar mapping each calendar month → month type, used only to
 highlight the "current" column. Peak months: **June, December**. Proposed default for the rest
@@ -132,7 +138,8 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 | Two tiers with **equal** discount | warning |
 | Duplicate tier thresholds | error |
 | Customer types not non-decreasing in discount | error (decreasing) / warning (equal) |
-| Pre-peak 1–3 not non-decreasing | error / warning |
+| No month type / duplicate or reserved (`sale`) id / empty name | error |
+| Calendar month refers to a non-existent month type (only possible in a hand-edited file) | error |
 | Any discount `≥ 100 %` (multiplier `≤ 0`) | error |
 | Negative discount (surcharge) | error |
 | Sale factor `< 100 %` | warning: "sale below cost — loss per unit X PLN" |
@@ -159,7 +166,7 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 3. **Eligible package tiers** — tiers with threshold `> N` are **excluded** from anchor and output,
    with a warning [ASSUMPTION A7].
 4. **Deepest non-sale multiplier**
-   `M_deep = m(largest eligible tier) · m(largest customer discount) · m(deepest pre-peak)`
+   `M_deep = m(largest eligible tier) · m(largest customer discount) · m(deepest month type)`
 5. **Base price (net)**
    `B = ⌈F / M_deep⌉` (grosze). `B` is rounded once and displayed; every combination is computed
    from the **displayed** `B`, so the user can reproduce any number.
@@ -224,6 +231,12 @@ pre-peak 1–3, sale) = **125 rows**.
 ## 7. Editing and smart updates
 
 - Cells editable: unit price (basis column) of any row; base price `B` in the summary header.
+- **Edit mode** (checkbox **"Edytuj indywidualnie"**, default off, remembered):
+  - off (default) — the edit **shifts** the base so the edited row lands exactly on the entered price
+    (`B = ⌊(target − 1) / m⌋ + 1`, the smallest base with `⌈B · m⌉ = target`); every row sharing that
+    base follows its discounts. Regular rows shift `B`, sale rows shift only the sale base. Individually
+    edited rows keep their value. "Reset to calculated prices" removes the shift.
+  - on — only the edited combination changes (override).
 - Unit **net** price is the editable one; gross is always derived.
 - Manual edits are cleared (with a notice) when purchase cost, quantity or settings change —
   they refer to concrete prices that would otherwise silently become wrong.
@@ -283,7 +296,7 @@ JSON, with schema version for migration:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "handling": { "percentBp": 1000, "fixedGr": 50000 },
   "minProfit": { "percentBp": 1000, "fixedGr": 0 },
   "vatBp": 2300,
@@ -300,14 +313,20 @@ JSON, with schema version for migration:
     { "id": "w3", "label": { "pl": "hurt 3", "en": "wholesale 3" }, "discountBp": 1100 },
     { "id": "w4", "label": { "pl": "hurt 4", "en": "wholesale 4" }, "discountBp": 1400 }
   ],
-  "months": { "peakBp": 0, "prePeakBp": [1000, 2000, 3000] },
+  "months": [
+    { "id": "peak", "label": { "pl": "Szczyt", "en": "Peak" }, "discountBp": 0 },
+    { "id": "pre1", "label": { "pl": "Przedszczyt 1", "en": "Pre-peak 1" }, "discountBp": 1000 },
+    { "id": "pre2", "label": { "pl": "Przedszczyt 2", "en": "Pre-peak 2" }, "discountBp": 2000 },
+    { "id": "pre3", "label": { "pl": "Przedszczyt 3", "en": "Pre-peak 3" }, "discountBp": 3000 }
+  ],
   "sale": { "factorBp": 10000 },
   "calendar": ["sale","sale","pre3","pre2","pre1","peak","sale","sale","pre3","pre2","pre1","peak"],
   "ui": { "discountInput": "percent" }
 }
 ```
 
-Validated with a schema on load; invalid files never partially apply.
+Validated with a schema on load; invalid files never partially apply. Version 1 files (fixed
+`{ peakBp, prePeakBp[3] }`) are migrated automatically to the month-type list with the same ids.
 
 ---
 

@@ -41,7 +41,7 @@ test('breakdown explains a price', async ({ page }) => {
   await expect(panel).toContainText('12,51');
 });
 
-test('edit a single price from the matrix', async ({ page }) => {
+test('editing a price shifts all prices by default', async ({ page }) => {
   await fill(page, '10', '1000');
   await pickMonth(page, 'Szczyt');
   const cell = page.getByTestId('cell-50|retail|peak');
@@ -49,19 +49,56 @@ test('edit a single price from the matrix', async ({ page }) => {
   await expect(cell).toContainText('brutto 27,21 / 1360,38');
 
   await cell.click();
+  await expect(page.getByTestId('price-editor-hint')).toContainText('przesunie wszystkie ceny');
+  await page.getByTestId('price-editor-input').fill('25');
+  await page.getByTestId('price-editor-apply').click();
+  await expect(cell).toContainText('25,00 / 1250,00');
+  await expect(cell).toHaveAttribute('data-status', 'ok');
+  // ⌈B · 0,98⌉ = 25,00 → B = 25,51; the single-unit price follows.
+  await expect(page.getByTestId('cell-1|retail|peak')).toContainText('25,51');
+  await expect(page.getByTestId('stat-base')).toContainText('25,51');
+
+  await page.getByTestId('price-editor-reset-shift').click();
+  await expect(cell).toContainText('22,12 / 1106,00');
+  await expect(page.getByTestId('cell-1|retail|peak')).toContainText('22,57');
+});
+
+test('"edit individually" changes only one combination', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await pickMonth(page, 'Szczyt');
+  const cell = page.getByTestId('cell-50|retail|peak');
+  await cell.click();
+  await page.getByTestId('price-editor-individually').check();
+  await expect(page.getByTestId('price-editor-hint')).toContainText('tylko tę jedną kombinację');
   await page.getByTestId('price-editor-input').fill('25');
   await page.getByTestId('price-editor-apply').click();
   await expect(cell).toContainText('25,00 / 1250,00');
   await expect(cell).toHaveAttribute('data-status', 'override');
+  await expect(page.getByTestId('cell-1|retail|peak')).toContainText('22,57');
 
   await page.getByTestId('price-editor-reset').click();
   await expect(cell).toContainText('22,12 / 1106,00');
   await expect(page.getByTestId('price-editor-reset')).toHaveCount(0);
 });
 
+test('maximum price highlights prices above it', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await pickMonth(page, 'Szczyt');
+  await expect(page.getByTestId('cell-1|retail|peak')).not.toHaveAttribute('data-above-max', 'true');
+  await page.getByLabel('Cena maksymalna (netto, za sztukę)').fill('20');
+  await expect(page.getByTestId('cell-1|retail|peak')).toHaveAttribute('data-above-max', 'true');
+  await expect(page.getByTestId('cell-300|w4|peak')).not.toHaveAttribute('data-above-max', 'true');
+  await expect(page.getByTestId('issues-warning')).toContainText('powyżej ceny maksymalnej 20,00');
+
+  await page.getByLabel('Cena maksymalna (netto, za sztukę)').fill('abc');
+  await expect(page.getByText('Niepoprawna liczba')).toBeVisible();
+  await expect(page.getByTestId('cell-1|retail|peak')).not.toHaveAttribute('data-above-max', 'true');
+});
+
 test('manual edit with smart updates recalculates the row', async ({ page }) => {
   await fill(page, '10', '1000');
   await page.getByText('Pokaż szczegóły').click();
+  await page.getByLabel('Edytuj indywidualnie').check();
   await page.getByTestId('edit-1|retail|peak').click();
   await page.getByTestId('edit-1|retail|peak-input').fill('30');
   await page.getByTestId('edit-1|retail|peak-input').press('Enter');
@@ -177,3 +214,29 @@ test('light / dark theme toggle is remembered', async ({ page }) => {
   await page.getByRole('button', { name: 'Jasny motyw' }).click();
   await expect(html).toHaveAttribute('data-mantine-color-scheme', 'light');
 });
+
+test('month types can be added, renamed and removed', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await page.getByRole('tab', { name: /Ustawienia/ }).click();
+  const months = page.getByTestId('list-months');
+  await months.getByRole('button', { name: /Dodaj rodzaj miesiąca/ }).click();
+  await page.locator('#field-months-4-label').fill('Szczyt zimowy');
+  await months.getByRole('textbox', { name: 'Nazwa (EN)' }).nth(4).fill('Winter peak');
+  await page.locator('#field-months-4-discountBp').fill('5');
+
+  await page.getByRole('tab', { name: 'Kalkulator' }).click();
+  await pickMonth(page, 'Szczyt zimowy');
+  // 5 % off the single-unit retail price 22,57 → ⌈21,4415⌉ = 21,45
+  await expect(page.getByTestId('cell-1|retail|' + (await firstNewMonthId(page)))).toContainText('21,45');
+
+  await page.getByRole('tab', { name: /Ustawienia/ }).click();
+  await months.getByRole('button', { name: 'Usuń' }).nth(4).click();
+  await page.getByRole('tab', { name: 'Kalkulator' }).click();
+  await expect(page.getByTestId('month-selector')).not.toContainText('Szczyt zimowy');
+});
+
+/** Id of the month type added in the test (generated), read from a matrix cell. */
+async function firstNewMonthId(page: Page) {
+  const testId = await page.locator('[data-testid^="cell-1|retail|m"]').first().getAttribute('data-testid');
+  return testId!.split('|')[2]!;
+}

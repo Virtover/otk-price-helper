@@ -6,7 +6,7 @@ import { issueMessage } from '../format';
 
 const LEVELS: { level: IssueLevel; color: string }[] = [
   { level: 'error', color: 'red' },
-  { level: 'warning', color: 'yellow' },
+  { level: 'warning', color: 'orange' },
   { level: 'info', color: 'brand' },
 ];
 

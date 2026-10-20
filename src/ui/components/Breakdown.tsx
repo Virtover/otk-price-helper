@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { explainRow } from '../../core/explain';
 import type { Locale } from '../../core/money';
 import type { Config, PriceList, PriceRow } from '../../core/types';
-import { customerLabel, formatParams, formatStepValue } from '../format';
+import { customerLabel, formatParams, formatStepValue, monthLabel } from '../format';
 import { PriceEditor } from './PriceEditor';
 import { STATUS_COLOR } from './status';
 
@@ -14,10 +14,15 @@ interface Props {
   lang: Locale;
   onClose: () => void;
   onEdit: (key: string, value?: bigint) => void;
+  individually: boolean;
+  onIndividually: (value: boolean) => void;
+  /** Reset the shifted base (sale base for sale rows). */
+  onResetShift: (sale: boolean) => void;
 }
 
 /** "Why this price?" — the full derivation of one row. */
-export function Breakdown({ list, row, config, lang, onClose, onEdit }: Props) {
+export function Breakdown(props: Props) {
+  const { list, row, config, lang, onClose, onEdit, individually, onIndividually, onResetShift } = props;
   const { t } = useTranslation();
   const steps = row ? explainRow(list, row, config) : [];
   const calculated = steps.find((s) => s.key === 'netOverride')?.params?.calculated;
@@ -41,7 +46,7 @@ export function Breakdown({ list, row, config, lang, onClose, onEdit }: Props) {
               {t('breakdown.subtitle', {
                 qty: row.qty === 1n ? t('matrix.single') : t('matrix.units', { qty: row.qty.toString() }),
                 customer: customerLabel(config.customers, row.customerId, lang),
-                month: t(`months.${row.month}`),
+                month: monthLabel(config, row.month, lang, t),
               })}
             </Text>
             <Badge variant="light" color={STATUS_COLOR[row.status] ?? 'gray'}>
@@ -53,6 +58,10 @@ export function Breakdown({ list, row, config, lang, onClose, onEdit }: Props) {
             calculated={calculated && typeof calculated === 'object' && 'money' in calculated ? calculated.money : undefined}
             lang={lang}
             onEdit={onEdit}
+            individually={individually}
+            onIndividually={onIndividually}
+            shifted={row.month === 'sale' ? list.sale.baseOverridden : list.baseOverridden}
+            onResetShift={() => onResetShift(row.month === 'sale')}
           />
           <Divider />
           <Table verticalSpacing={4} fz="sm">

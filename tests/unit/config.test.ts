@@ -18,8 +18,29 @@ describe('config file', () => {
   });
 
   it('rejects newer versions', () => {
-    const text = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 2 });
-    expect(parseConfigFile(text)).toMatchObject({ ok: false, error: 'newerVersion', details: ['2'] });
+    const text = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 3 });
+    expect(parseConfigFile(text)).toMatchObject({ ok: false, error: 'newerVersion', details: ['3'] });
+  });
+
+  it('migrates v1 files (fixed peak + 3 pre-peaks) to editable month types', () => {
+    const v1 = { ...DEFAULT_CONFIG, schemaVersion: 1, months: { peakBp: 0, prePeakBp: [500, 1000, 1500] } };
+    const r = parseConfigFile(JSON.stringify(v1));
+    expect(r).toMatchObject({ ok: true, migratedFrom: 1 });
+    if (r.ok) {
+      expect(r.config.schemaVersion).toBe(2);
+      expect(r.config.months.map((m) => [m.id, m.label.pl, m.discountBp])).toEqual([
+        ['peak', 'Szczyt', 0],
+        ['pre1', 'Przedszczyt 1', 500],
+        ['pre2', 'Przedszczyt 2', 1000],
+        ['pre3', 'Przedszczyt 3', 1500],
+      ]);
+      expect(r.config.calendar).toEqual(DEFAULT_CONFIG.calendar);
+    }
+  });
+
+  it('rejects a broken v1 file instead of half-migrating it', () => {
+    const v1 = { ...DEFAULT_CONFIG, schemaVersion: 1, months: { peakBp: 'x' } };
+    expect(parseConfigFile(JSON.stringify(v1))).toMatchObject({ ok: false, error: 'invalid' });
   });
 
   it('rejects older versions without a migration', () => {
@@ -39,7 +60,8 @@ describe('config file', () => {
   });
 
   it('loads files that break business rules (shown as field errors instead)', () => {
-    const text = JSON.stringify({ ...DEFAULT_CONFIG, months: { peakBp: 0, prePeakBp: [3000, 2000, 1000] } });
+    const months = DEFAULT_CONFIG.months.map((m) => ({ ...m, discountBp: 10000 }));
+    const text = JSON.stringify({ ...DEFAULT_CONFIG, months });
     expect(parseConfigFile(text).ok).toBe(true);
   });
 });

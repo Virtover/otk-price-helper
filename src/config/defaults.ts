@@ -1,7 +1,7 @@
 import type { Config } from '../core/types';
 
 export const DEFAULT_CONFIG: Config = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   handling: { percentBp: 1000, fixedGr: 50000 },
   minProfit: { percentBp: 1000, fixedGr: 0 },
   vatBp: 2300,
@@ -18,7 +18,12 @@ export const DEFAULT_CONFIG: Config = {
     { id: 'w3', label: { pl: 'hurt 3', en: 'wholesale 3' }, discountBp: 1100 },
     { id: 'w4', label: { pl: 'hurt 4', en: 'wholesale 4' }, discountBp: 1400 },
   ],
-  months: { peakBp: 0, prePeakBp: [1000, 2000, 3000] },
+  months: [
+    { id: 'peak', label: { pl: 'Szczyt', en: 'Peak' }, discountBp: 0 },
+    { id: 'pre1', label: { pl: 'Przedszczyt 1', en: 'Pre-peak 1' }, discountBp: 1000 },
+    { id: 'pre2', label: { pl: 'Przedszczyt 2', en: 'Pre-peak 2' }, discountBp: 2000 },
+    { id: 'pre3', label: { pl: 'Przedszczyt 3', en: 'Pre-peak 3' }, discountBp: 3000 },
+  ],
   sale: { factorBp: 10000 },
   calendar: ['sale', 'sale', 'pre3', 'pre2', 'pre1', 'peak', 'sale', 'sale', 'pre3', 'pre2', 'pre1', 'peak'],
   ui: { discountInput: 'percent' },

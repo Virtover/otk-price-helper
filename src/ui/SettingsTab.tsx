@@ -29,11 +29,12 @@ import {
   parseMultiplierBp,
   parsePercentBp,
 } from '../core/money';
-import { MONTH_TYPES, type Config } from '../core/types';
+import { monthIds } from '../core/pricing';
+import { type Config, type CustomerType, SALE } from '../core/types';
 import { validateConfig } from '../core/validate';
 import { confirmDialog, openTextFile, saveTextFile } from '../lib/fileio';
 import { DecimalField } from './components/DecimalField';
-import { fieldId, issueMessage } from './format';
+import { fieldId, issueMessage, monthLabel } from './format';
 import { type Action, type AppState, isDirty } from './state';
 
 interface Props {
@@ -42,6 +43,9 @@ interface Props {
 }
 
 type Notice = { color: string; text: string; details?: string[] };
+
+/** Customer types and month types share this shape. */
+type LabelledItem = CustomerType;
 
 /** Field widths: values are 1–5 characters, hints wrap under the input. */
 const NARROW = 100;
@@ -178,15 +182,120 @@ export function SettingsTab({ state, dispatch }: Props) {
     setNotice(undefined);
   }
 
-  const months = [
-    { key: 'peak', path: 'months.peakBp', bp: config.months.peakBp, set: (c: Config, v: number) => (c.months.peakBp = v) },
-    ...([0, 1, 2] as const).map((i) => ({
-      key: `pre${i + 1}`,
-      path: `months.prePeakBp.${i}`,
-      bp: config.months.prePeakBp[i],
-      set: (c: Config, v: number) => (c.months.prePeakBp[i] = v),
-    })),
-  ];
+  /**
+   * Editable list of named discounts (customer types, month types): names in both
+   * languages, discount, reorder, add, remove.
+   */
+  const labelledList = (kind: 'customers' | 'months', title: string, hint: string, addLabel: string, newLabelKey: string) => {
+    const items: LabelledItem[] = config[kind];
+    const itemsOf = (c: Config): LabelledItem[] => c[kind];
+    const remove = (c: Config, i: number) => {
+      const [removed] = itemsOf(c).splice(i, 1);
+      // Calendar months that used a removed month type move to the first remaining one.
+      if (kind === 'months' && removed) {
+        c.calendar = c.calendar.map((m) => (m === removed.id ? (c.months[0]?.id ?? SALE) : m));
+      }
+    };
+    return (
+      <Stack gap="xs" w="fit-content" data-testid={`list-${kind}`}>
+        <Title order={5}>{title}</Title>
+        <Text size="xs" c="dimmed">
+          {hint}
+        </Text>
+        <Table verticalSpacing={4} style={{ width: 'auto' }}>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t('settings.labelPl')}</Table.Th>
+              <Table.Th>{t('settings.labelEn')}</Table.Th>
+              <Table.Th>{multiplierMode ? t('settings.multiplier') : t('settings.discount')}</Table.Th>
+              <Table.Th />
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {items.map((item, i) => {
+              const labelError = messageFor(`${kind}.${i}.label`, 'error');
+              return (
+                <Table.Tr key={item.id}>
+                  <Table.Td>
+                    <TextInput
+                      id={fieldId(`${kind}.${i}.label`)}
+                      w={LABEL_W}
+                      aria-label={t('settings.labelPl')}
+                      value={item.label.pl}
+                      error={!!labelError}
+                      onChange={(e) => {
+                        const v = e.currentTarget.value;
+                        update((c) => (itemsOf(c)[i]!.label.pl = v));
+                      }}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <TextInput
+                      w={LABEL_W}
+                      aria-label={t('settings.labelEn')}
+                      value={item.label.en}
+                      error={!!labelError}
+                      onChange={(e) => {
+                        const v = e.currentTarget.value;
+                        update((c) => (itemsOf(c)[i]!.label.en = v));
+                      }}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    {discountField(`${kind}.${i}.discountBp`, item.discountBp, (v) =>
+                      update((c) => (itemsOf(c)[i]!.discountBp = v)))}
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={2} wrap="nowrap">
+                      <Tooltip label={t('settings.moveUp')}>
+                        <ActionIcon
+                          variant="subtle"
+                          disabled={i === 0}
+                          aria-label={t('settings.moveUp')}
+                          onClick={() => update((c) => swap(itemsOf(c), i, i - 1))}
+                        >
+                          ↑
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label={t('settings.moveDown')}>
+                        <ActionIcon
+                          variant="subtle"
+                          disabled={i === items.length - 1}
+                          aria-label={t('settings.moveDown')}
+                          onClick={() => update((c) => swap(itemsOf(c), i, i + 1))}
+                        >
+                          ↓
+                        </ActionIcon>
+                      </Tooltip>
+                      <RemoveButton label={t('settings.remove')} onClick={() => update((c) => remove(c, i))} />
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
+        {messagesUnder(kind)}
+        <Button
+          id={fieldId(kind)}
+          variant="light"
+          size="xs"
+          onClick={() =>
+            update((c) => {
+              const last = itemsOf(c)[itemsOf(c).length - 1];
+              itemsOf(c).push({
+                id: `${kind[0]}${Date.now().toString(36)}`,
+                label: { pl: t(newLabelKey, { lng: 'pl' }), en: t(newLabelKey, { lng: 'en' }) },
+                discountBp: last?.discountBp ?? 0,
+              });
+            })
+          }
+        >
+          + {addLabel}
+        </Button>
+      </Stack>
+    );
+  };
 
   return (
     <Stack gap="md">
@@ -308,16 +417,6 @@ export function SettingsTab({ state, dispatch }: Props) {
             </Button>
           </Stack>
 
-          <Stack gap="xs">
-            <Title order={5}>{t('settings.months')}</Title>
-            <Stack gap="xs">
-              {months.map((m) => (
-                <div key={m.key}>{discountField(m.path, m.bp, (v) => update((c) => m.set(c, v)), t(`months.${m.key}`))}</div>
-              ))}
-            </Stack>
-            <div style={{ maxWidth: 220 }}>{messagesUnder('months.')}</div>
-          </Stack>
-
           <Stack gap="xs" w={WIDE + 40}>
             <Title order={5}>{t('settings.sale')}</Title>
             <DecimalField
@@ -337,106 +436,20 @@ export function SettingsTab({ state, dispatch }: Props) {
           </Stack>
         </Group>
 
-        <Stack gap="xs" w="fit-content">
-          <Title order={5}>{t('settings.customers')}</Title>
-          <Text size="xs" c="dimmed">
-            {t('settings.customersHint')}
-          </Text>
-          <Table verticalSpacing={4} style={{ width: 'auto' }}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t('settings.labelPl')}</Table.Th>
-                <Table.Th>{t('settings.labelEn')}</Table.Th>
-                <Table.Th>{multiplierMode ? t('settings.multiplier') : t('settings.discount')}</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {config.customers.map((cu, i) => {
-                const labelError = messageFor(`customers.${i}.label`, 'error');
-                return (
-                  <Table.Tr key={cu.id}>
-                    <Table.Td>
-                      <TextInput
-                        id={fieldId(`customers.${i}.label`)}
-                        w={LABEL_W}
-                        aria-label={t('settings.labelPl')}
-                        value={cu.label.pl}
-                        error={!!labelError}
-                        onChange={(e) => {
-                          const v = e.currentTarget.value;
-                          update((c) => (c.customers[i]!.label.pl = v));
-                        }}
-                      />
-                    </Table.Td>
-                    <Table.Td>
-                      <TextInput
-                        w={LABEL_W}
-                        aria-label={t('settings.labelEn')}
-                        value={cu.label.en}
-                        error={!!labelError}
-                        onChange={(e) => {
-                          const v = e.currentTarget.value;
-                          update((c) => (c.customers[i]!.label.en = v));
-                        }}
-                      />
-                    </Table.Td>
-                    <Table.Td>
-                      {discountField(`customers.${i}.discountBp`, cu.discountBp, (v) =>
-                        update((c) => (c.customers[i]!.discountBp = v)))}
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={2} wrap="nowrap">
-                        <Tooltip label={t('settings.moveUp')}>
-                          <ActionIcon
-                            variant="subtle"
-                            disabled={i === 0}
-                            aria-label={t('settings.moveUp')}
-                            onClick={() => update((c) => swap(c.customers, i, i - 1))}
-                          >
-                            ↑
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t('settings.moveDown')}>
-                          <ActionIcon
-                            variant="subtle"
-                            disabled={i === config.customers.length - 1}
-                            aria-label={t('settings.moveDown')}
-                            onClick={() => update((c) => swap(c.customers, i, i + 1))}
-                          >
-                            ↓
-                          </ActionIcon>
-                        </Tooltip>
-                        <RemoveButton
-                          label={t('settings.remove')}
-                          onClick={() => update((c) => c.customers.splice(i, 1))}
-                        />
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
-          {messagesUnder('customers')}
-          <Button
-            id={fieldId('customers')}
-            variant="light"
-            size="xs"
-            onClick={() =>
-              update((c) => {
-                const last = c.customers[c.customers.length - 1];
-                c.customers.push({
-                  id: `c${Date.now().toString(36)}`,
-                  label: { pl: t('settings.newCustomer', { lng: 'pl' }), en: t('settings.newCustomer', { lng: 'en' }) },
-                  discountBp: last?.discountBp ?? 0,
-                });
-              })
-            }
-          >
-            + {t('settings.addCustomer')}
-          </Button>
-        </Stack>
+        {labelledList(
+          'customers',
+          t('settings.customers'),
+          t('settings.customersHint'),
+          t('settings.addCustomer'),
+          'settings.newCustomer',
+        )}
+        {labelledList(
+          'months',
+          t('settings.months'),
+          t('settings.monthsHint'),
+          t('settings.addMonth'),
+          'settings.newMonth',
+        )}
       </Section>
 
       <Accordion
@@ -465,11 +478,12 @@ export function SettingsTab({ state, dispatch }: Props) {
                   label={(t('months.names', { returnObjects: true }) as string[])[i]}
                   value={m}
                   allowDeselect={false}
-                  onChange={(v) => v && update((c) => (c.calendar[i] = v as Config['calendar'][number]))}
-                  data={MONTH_TYPES.map((mt) => ({ value: mt, label: t(`months.${mt}`) }))}
+                  onChange={(v) => v && update((c) => (c.calendar[i] = v))}
+                  data={monthIds(config).map((mt) => ({ value: mt, label: monthLabel(config, mt, lang, t) }))}
                 />
               ))}
             </Group>
+            {messagesUnder('calendar')}
           </Accordion.Panel>
         </Accordion.Item>
       </Accordion>

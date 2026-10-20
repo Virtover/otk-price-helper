@@ -4,7 +4,7 @@
  */
 import { type Rat, ceil, fromBp, isInteger, mul, rat, sub } from './rational';
 import { monthDiscountBp, multiplierOf } from './pricing';
-import type { Config, IssueParam, PriceList, PriceRow, RegularMonth } from './types';
+import type { Config, IssueParam, PriceList, PriceRow } from './types';
 
 export type StepValue =
   | { money: bigint }
@@ -21,6 +21,11 @@ export interface Step {
   params?: Record<string, IssueParam>;
   /** Step is a remark rather than a value in the chain. */
   note?: boolean;
+}
+
+function monthParam(config: Config, id: string): IssueParam {
+  const def = config.months.find((m) => m.id === id);
+  return def ? { text: def.label } : id;
 }
 
 export function explainRow(list: PriceList, row: PriceRow, config: Config): Step[] {
@@ -55,9 +60,9 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
       { key: 'saleCost', value: { moneyRat: list.sale.cost } },
       { key: 'saleDeepMultiplier', value: { mult: list.sale.deepMultiplier } },
       { key: 'saleBaseExact', value: { moneyPrecise: list.sale.baseExact } },
-      { key: 'saleBase', value: { money: list.sale.base } },
+      { key: list.sale.baseOverridden ? 'saleBaseOverride' : 'saleBase', value: { money: list.sale.base } },
     );
-    refBase = list.sale.base;
+    refBase = row.stale ? list.sale.baseCalculated : list.sale.base;
   } else {
     steps.push(
       {
@@ -75,7 +80,7 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
         params: {
           qty: list.deepest.tier.qty.toString(),
           customer: { text: config.customers.find((cu) => cu.id === list.deepest.customerId)!.label },
-          month: { key: `months.${list.deepest.month}` },
+          month: monthParam(config, list.deepest.month),
         },
       },
       { key: 'baseExact', value: { moneyPrecise: list.baseExact } },
@@ -95,11 +100,10 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
     },
   );
   if (!isSale) {
-    const month = row.month as RegularMonth;
     steps.push({
       key: 'monthMultiplier',
-      value: { mult: multiplierOf(monthDiscountBp(config, month)) },
-      params: { month: { key: `months.${month}` } },
+      value: { mult: multiplierOf(monthDiscountBp(config, row.month)) },
+      params: { month: monthParam(config, row.month) },
     });
   }
   const netExact = mul(rat(refBase), row.multiplier);
@@ -129,6 +133,14 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
     value: { moneyRat: row.profitUnit },
     params: { pct: { pct: row.profitPct } },
   });
+  if (row.aboveMax && list.input.maxPriceGr !== undefined) {
+    steps.push({
+      key: 'aboveMax',
+      note: true,
+      value: { money: row.netUnit - list.input.maxPriceGr },
+      params: { max: { money: list.input.maxPriceGr } },
+    });
+  }
   if (row.shortfall) {
     steps.push({
       key: isSale ? 'belowSale' : 'belowFloor',

@@ -12,22 +12,31 @@ export interface CustomerType {
   discountBp: number;
 }
 
-export const MONTH_TYPES = ['peak', 'pre1', 'pre2', 'pre3', 'sale'] as const;
-export type MonthType = (typeof MONTH_TYPES)[number];
-export const REGULAR_MONTHS = ['peak', 'pre1', 'pre2', 'pre3'] as const;
-export type RegularMonth = (typeof REGULAR_MONTHS)[number];
+/** Regular month type (peak, pre-peak, …) — user-defined. */
+export interface MonthTypeDef {
+  id: string;
+  label: { pl: string; en: string };
+  discountBp: number;
+}
+
+/** The sale month type is built in: it is priced from cost, not from the base price. */
+export const SALE = 'sale';
+
+/** Id of a regular month type, or SALE. */
+export type MonthType = string;
 
 export interface Config {
-  schemaVersion: 1;
+  schemaVersion: 2;
   handling: { percentBp: number; fixedGr: number };
   minProfit: { percentBp: number; fixedGr: number };
   vatBp: number;
   packages: PackageTier[];
   customers: CustomerType[];
-  months: { peakBp: number; prePeakBp: [number, number, number] };
+  /** Regular month types in display order. */
+  months: MonthTypeDef[];
   /** Sale price factor applied to unit cost K (10000 = 100 % = sell at cost). */
   sale: { factorBp: number };
-  /** Month type for each calendar month, January first. */
+  /** Month type id (or SALE) for each calendar month, January first. */
   calendar: MonthType[];
   ui: { discountInput: 'percent' | 'multiplier' };
 }
@@ -38,6 +47,8 @@ export interface ProductInput {
   costGr: bigint;
   /** Quantity bought by the shop. */
   qty: bigint;
+  /** Optional upper limit for the net unit price; rows above it are flagged. */
+  maxPriceGr?: bigint;
 }
 
 export type IssueLevel = 'error' | 'warning' | 'info';
@@ -65,6 +76,8 @@ export interface Issue {
 export interface Overrides {
   /** Manually set base price B (net, grosze). */
   base?: bigint;
+  /** Manually set sale base (net, grosze). */
+  saleBase?: bigint;
   /** Manually set net unit price per row key. */
   rows: Record<string, bigint>;
 }
@@ -97,6 +110,8 @@ export interface PriceRow {
   stale: boolean;
   /** Below floor (regular) or below sale price (sale): missing amount per unit, grosze. */
   shortfall?: Rat;
+  /** Net unit price exceeds the optional maximum price from the input. */
+  aboveMax: boolean;
 }
 
 export interface Tier {
@@ -117,14 +132,22 @@ export interface PriceList {
   minProfit: Rat;
   floor: Rat;
   tiers: Tier[];
-  deepest: { tier: Tier; customerId: string; month: RegularMonth; multiplier: Rat };
+  deepest: { tier: Tier; customerId: string; month: MonthType; multiplier: Rat };
   baseExact: Rat;
   baseCalculated: bigint;
   /** Base actually used (override or calculated). */
   base: bigint;
   baseGross: bigint;
   baseOverridden: boolean;
-  sale: { cost: Rat; deepMultiplier: Rat; baseExact: Rat; base: bigint };
+  sale: {
+    cost: Rat;
+    deepMultiplier: Rat;
+    baseExact: Rat;
+    baseCalculated: bigint;
+    /** Base actually used (override or calculated). */
+    base: bigint;
+    baseOverridden: boolean;
+  };
   /** Retail, single unit, peak month profit as a fraction of purchase cost. */
   retailProfitPct: Rat;
   rows: PriceRow[];

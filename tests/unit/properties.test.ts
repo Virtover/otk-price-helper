@@ -27,7 +27,7 @@ const configArb: fc.Arbitrary<Config> = fc
     tierQtys: fc.uniqueArray(fc.integer({ min: 2, max: 1000 }), { maxLength: 5 }),
     tierDiscounts: ladder(5, 5),
     customerDiscounts: ladder(1, 5),
-    monthDiscounts: ladder(4, 4),
+    monthDiscounts: fc.array(fc.integer({ min: 0, max: 4000 }), { minLength: 1, maxLength: 5 }),
     sale: fc.integer({ min: 1, max: 20_000 }),
   })
   .map((r) => ({
@@ -41,10 +41,8 @@ const configArb: fc.Arbitrary<Config> = fc
       label: { pl: `k${i}`, en: `c${i}` },
       discountBp,
     })),
-    months: {
-      peakBp: r.monthDiscounts[0]!,
-      prePeakBp: [r.monthDiscounts[1]!, r.monthDiscounts[2]!, r.monthDiscounts[3]!] as [number, number, number],
-    },
+    months: r.monthDiscounts.map((discountBp, i) => ({ id: `m${i}`, label: { pl: `m${i}`, en: `m${i}` }, discountBp })),
+    calendar: Array<string>(12).fill('m0'),
     sale: { factorBp: r.sale },
   }));
 

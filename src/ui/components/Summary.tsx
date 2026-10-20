@@ -52,7 +52,10 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
       </Stat>
       <Stat
         label={t('summary.base')}
-        hint={t('summary.baseHint', { customer: config.customers[0]?.label[lang] ?? '' })}
+        hint={t('summary.baseHint', {
+          customer: config.customers[0]?.label[lang] ?? '',
+          month: config.months[0]?.label[lang] ?? '',
+        })}
         testId="stat-base"
         highlight
       >

@@ -16,7 +16,9 @@
     "cost": "Koszt zakupu (netto, za sztukę)",
     "qty": "Liczba sztuk",
     "qtyHint": "Liczba sztuk w zamówieniu sklepu",
-    "nameRequired": "Nazwa produktu jest wymagana do eksportu"
+    "nameRequired": "Nazwa produktu jest wymagana do eksportu",
+    "maxPrice": "Cena maksymalna (netto, za sztukę)",
+    "maxPriceHint": "Opcjonalnie — ceny powyżej zostaną podświetlone"
   },
   "parse": {
     "empty": "Wpisz wartość",
@@ -30,7 +32,7 @@
     "floor": "Cena minimalna",
     "floorHint": "koszt + minimalny zysk (netto)",
     "base": "Cena maksymalna",
-    "baseHint": "1 szt. · {{customer}} · szczyt",
+    "baseHint": "1 szt. · {{customer}} · {{month}}",
     "retailProfit": "Zysk detaliczny",
     "retailProfitHint": "kosztu zakupu",
     "net": "netto",
@@ -39,10 +41,6 @@
     "resetBase": "Przywróć wyliczoną ({{value}})"
   },
   "months": {
-    "peak": "Szczyt",
-    "pre1": "Przedszczyt 1",
-    "pre2": "Przedszczyt 2",
-    "pre3": "Przedszczyt 3",
     "sale": "Wyprzedaż",
     "current": "teraz",
     "names": [
@@ -75,7 +73,8 @@
     "override": "edytowana",
     "error": "poniżej minimum",
     "stale": "nieprzeliczona",
-    "legend": "Legenda"
+    "legend": "Legenda",
+    "aboveMax": "powyżej maks."
   },
   "details": {
     "show": "Pokaż szczegóły",
@@ -109,10 +108,14 @@
     "netUnit": "Cena netto za sztukę",
     "reset": "Przywróć wyliczoną",
     "save": "Zastosuj",
-    "editHint": "Cena netto za sztukę. Brutto i sumy pakietu są z niej przeliczane.",
     "title": "Zmień cenę tej kombinacji",
     "edit": "Edytuj cenę",
-    "resetTo": "Przywróć wyliczoną ({{value}})"
+    "resetTo": "Przywróć wyliczoną ({{value}})",
+    "individually": "Edytuj indywidualnie",
+    "shiftHint": "Zmiana przesunie wszystkie ceny zgodnie z rabatami (poza wyprzedażą). Ręcznie edytowane ceny zostają bez zmian.",
+    "shiftSaleHint": "Zmiana przesunie wszystkie ceny wyprzedażowe zgodnie z rabatami.",
+    "individualHint": "Zmieni tylko tę jedną kombinację. Brutto i sumy pakietu są przeliczane.",
+    "resetShift": "Przywróć wyliczone ceny"
   },
   "breakdown": {
     "title": "Skąd ta cena?",
@@ -146,7 +149,9 @@
     "grossNotDivisible": "Brutto za szt. × liczba dałoby tyle — różnica {{diff}}, bo VAT liczony jest od sumy netto jak na fakturze",
     "profitUnit": "Zysk na sztuce ({{pct}} kosztu zakupu)",
     "belowFloor": "Poniżej ceny minimalnej {{threshold}} o tyle na sztuce",
-    "belowSale": "Poniżej ceny wyprzedażowej {{threshold}} o tyle na sztuce"
+    "belowSale": "Poniżej ceny wyprzedażowej {{threshold}} o tyle na sztuce",
+    "saleBaseOverride": "= baza wyprzedaży (przesunięta ręcznie)",
+    "aboveMax": "Powyżej ceny maksymalnej {{max}} o tyle na sztuce"
   },
   "issues": {
     "title": "Komunikaty",
@@ -168,8 +173,6 @@
     "customerLabelEmpty": "Rodzaj klienta musi mieć nazwę w obu językach.",
     "customerOrderError": "„{{b}}” ma mniejszy rabat niż „{{a}}” — ułóż klientów od najmniejszego do największego rabatu.",
     "customerOrderEqual": "„{{a}}” i „{{b}}” mają ten sam rabat.",
-    "monthOrderError": "{{b}} ma mniejszy rabat niż {{a}}.",
-    "monthOrderEqual": "{{a}} i {{b}} mają ten sam rabat.",
     "saleFactorRange": "Współczynnik wyprzedaży musi być większy od 0 i nie większy niż 1000 %.",
     "costNonPositive": "Koszt zakupu musi być większy od 0.",
     "qtyNonPositive": "Liczba sztuk musi wynosić co najmniej 1.",
@@ -181,7 +184,14 @@
     "saleBelowCost": "Wyprzedaż poniżej kosztu — najgłębsza kombinacja traci {{loss}} na sztuce.",
     "saleAboveRegular": "Ceny wyprzedażowe ({{count}}) są wyższe niż ta sama kombinacja w najtańszym zwykłym miesiącu.",
     "rowsBelowFloor": "Ceny poniżej minimum: {{count}}.",
-    "staleRows": "Wiersze nieprzeliczone po ręcznych zmianach: {{count}} (inteligentne aktualizacje wyłączone)."
+    "staleRows": "Wiersze nieprzeliczone po ręcznych zmianach: {{count}} (inteligentne aktualizacje wyłączone).",
+    "maxPriceNonPositive": "Cena maksymalna musi być większa od 0.",
+    "maxBelowFloor": "Cena maksymalna {{max}} jest niższa niż cena minimalna {{floor}} — żadna cena nie spełni obu warunków.",
+    "rowsAboveMax": "Ceny powyżej ceny maksymalnej {{max}}: {{count}}.",
+    "monthNone": "Dodaj co najmniej jeden rodzaj miesiąca.",
+    "monthDuplicateId": "Zduplikowany rodzaj miesiąca.",
+    "monthLabelEmpty": "Rodzaj miesiąca musi mieć nazwę w obu językach.",
+    "calendarUnknown": "Kalendarz wskazuje nieistniejący rodzaj miesiąca."
   },
   "settings": {
     "costs": "Koszty i zysk",
@@ -234,7 +244,10 @@
       "noVersion": "To nie jest plik konfiguracji OTK Price Helper (brak schemaVersion).",
       "newerVersion": "Plik pochodzi z nowszej wersji aplikacji (schemat {{version}}).",
       "invalid": "Plik zawiera niepoprawne wpisy — nic nie zostało zmienione:"
-    }
+    },
+    "monthsHint": "Własne nazwy i rabaty, np. szczyt letni i zimowy. Wyprzedaż jest ustawiana osobno.",
+    "addMonth": "Dodaj rodzaj miesiąca",
+    "newMonth": "nowy miesiąc"
   },
   "export": {
     "csv": "Eksportuj CSV",

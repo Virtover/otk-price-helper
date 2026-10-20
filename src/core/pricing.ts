@@ -12,6 +12,7 @@ import {
   ceil,
   div,
   eq,
+  floor as floorOf,
   fromBp,
   gt,
   lt,
@@ -30,11 +31,10 @@ import type {
   PriceResult,
   PriceRow,
   ProductInput,
-  RegularMonth,
   RowStatus,
   Tier,
 } from './types';
-import { MONTH_TYPES, REGULAR_MONTHS } from './types';
+import { SALE } from './types';
 import { MAX_COST_GR, hasErrors, validateConfig, validateInput } from './validate';
 
 /** Largest supported unit price: 10 000 000 PLN. */
@@ -45,22 +45,35 @@ export const rowKey = (qty: bigint, customerId: string, month: MonthType) => `${
 /** Discount in bp → price multiplier (500 bp → 0.95). */
 export const multiplierOf = (discountBp: number): Rat => sub(ONE, fromBp(discountBp));
 
-export function monthDiscountBp(config: Config, month: RegularMonth): number {
-  switch (month) {
-    case 'peak':
-      return config.months.peakBp;
-    case 'pre1':
-      return config.months.prePeakBp[0];
-    case 'pre2':
-      return config.months.prePeakBp[1];
-    case 'pre3':
-      return config.months.prePeakBp[2];
-  }
+export function monthDiscountBp(config: Config, month: MonthType): number {
+  return config.months.find((m) => m.id === month)?.discountBp ?? 0;
 }
+
+/** Regular month type ids followed by the sale type, in display order. */
+export const monthIds = (config: Config): MonthType[] => [...config.months.map((m) => m.id), SALE];
 
 /** Element with the largest key; on ties the last one wins (deeper in the ladder). */
 function deepestBy<T>(items: readonly T[], key: (t: T) => number): T {
   return items.reduce((best, cur) => (key(cur) >= key(best) ? cur : best));
+}
+
+/**
+ * Smallest base B (grosze) for which ⌈B · m⌉ equals the target exactly.
+ * Every integer target is reachable because m ≤ 1 makes ⌈B · m⌉ grow by at most 1 per step.
+ */
+export function baseForTarget(target: bigint, multiplier: Rat): bigint {
+  return floorOf(div(rat(target - 1n), multiplier)) + 1n;
+}
+
+/**
+ * Overrides that move a row to the target price by shifting its base, so all
+ * other rows sharing that base follow according to their discounts. Sale rows
+ * shift the sale base; regular rows shift B. The row's own manual edit is dropped.
+ */
+export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrides): Overrides {
+  const { [row.key]: _dropped, ...rows } = overrides.rows;
+  const base = baseForTarget(target, row.multiplier);
+  return row.month === 'sale' ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
 }
 
 export interface CalculateOptions {
@@ -114,7 +127,7 @@ export function calculate(
   // 4. Deepest regular combination → base price B = ⌈F / M_deep⌉.
   const deepTier = deepestBy(tiers, (t) => t.discountBp);
   const deepCustomer = deepestBy(config.customers, (cu) => cu.discountBp);
-  const deepMonth = deepestBy(REGULAR_MONTHS, (m) => monthDiscountBp(config, m));
+  const deepMonth = deepestBy(config.months, (m) => m.discountBp).id;
   const deepMultiplier = product([
     multiplierOf(deepTier.discountBp),
     multiplierOf(deepCustomer.discountBp),
@@ -132,26 +145,29 @@ export function calculate(
   const saleCost = mul(unitCost, fromBp(config.sale.factorBp));
   const saleDeepMultiplier = mul(multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp));
   const saleBaseExact = div(saleCost, saleDeepMultiplier);
-  const saleBase = ceil(saleBaseExact);
+  const saleBaseCalculated = ceil(saleBaseExact);
+  const saleBaseOverridden = overrides.saleBase !== undefined;
+  const saleBase = overrides.saleBase ?? saleBaseCalculated;
 
   // 6. Rows.
   const rows: PriceRow[] = [];
   for (const tier of tiers) {
     for (const customer of config.customers) {
-      for (const month of MONTH_TYPES) {
-        const isSale = month === 'sale';
+      for (const month of monthIds(config)) {
+        const isSale = month === SALE;
         const parts = [multiplierOf(tier.discountBp), multiplierOf(customer.discountBp)];
         if (!isSale) parts.push(multiplierOf(monthDiscountBp(config, month)));
         const multiplier = product(parts);
         const key = rowKey(tier.qty, customer.id, month);
 
         // With smart updates off the derived columns keep their pre-edit values.
-        const refBase = isSale ? saleBase : smart ? base : baseCalculated;
+        const refBase = smart ? (isSale ? saleBase : base) : isSale ? saleBaseCalculated : baseCalculated;
         const calculatedNet = ceil(mul(rat(refBase), multiplier));
         const overrideNet = overrides.rows[key];
         const shownNet = overrideNet ?? calculatedNet;
         const derivedNet = smart ? shownNet : calculatedNet;
-        const stale = !smart && (overrideNet !== undefined || (baseOverridden && !isSale));
+        const stale =
+          !smart && (overrideNet !== undefined || (isSale ? saleBaseOverridden : baseOverridden));
 
         const threshold = isSale ? saleCost : floor;
         const net = rat(shownNet);
@@ -190,6 +206,7 @@ export function calculate(
           overridden: overrideNet !== undefined,
           stale,
           shortfall,
+          aboveMax: input.maxPriceGr !== undefined && shownNet > input.maxPriceGr,
         });
       }
     }
@@ -204,7 +221,10 @@ export function calculate(
       path: 'input.qty',
     });
   }
-  const retail = rows.find((r) => r.qty === 1n && r.customerId === config.customers[0]!.id && r.month === 'peak')!;
+  // Reference row: single unit, first customer type, first month type (normally the peak).
+  const retail = rows.find(
+    (r) => r.qty === 1n && r.customerId === config.customers[0]!.id && r.month === config.months[0]!.id,
+  )!;
   if (gt(retail.profitPct, ONE)) {
     issues.push({ level: 'info', code: 'retailProfitHigh', params: { pct: { pct: retail.profitPct } } });
   }
@@ -224,6 +244,16 @@ export function calculate(
   ).length;
   if (saleAbove > 0) {
     issues.push({ level: 'warning', code: 'saleAboveRegular', params: { count: saleAbove }, path: 'sale.factorBp' });
+  }
+  if (input.maxPriceGr !== undefined) {
+    const max = { money: input.maxPriceGr };
+    if (lt(rat(input.maxPriceGr), floor)) {
+      issues.push({ level: 'warning', code: 'maxBelowFloor', params: { max, floor: { moneyRat: floor } }, path: 'input.maxPriceGr' });
+    }
+    const above = rows.filter((r) => r.aboveMax).length;
+    if (above > 0) {
+      issues.push({ level: 'warning', code: 'rowsAboveMax', params: { count: above, max }, path: 'input.maxPriceGr' });
+    }
   }
   const errorRows = rows.filter((r) => r.status === 'error').length;
   if (errorRows > 0) issues.push({ level: 'error', code: 'rowsBelowFloor', params: { count: errorRows } });
@@ -245,7 +275,14 @@ export function calculate(
     base,
     baseGross: roundHalf(mul(rat(base), vat)),
     baseOverridden,
-    sale: { cost: saleCost, deepMultiplier: saleDeepMultiplier, baseExact: saleBaseExact, base: saleBase },
+    sale: {
+      cost: saleCost,
+      deepMultiplier: saleDeepMultiplier,
+      baseExact: saleBaseExact,
+      baseCalculated: saleBaseCalculated,
+      base: saleBase,
+      baseOverridden: saleBaseOverridden,
+    },
     retailProfitPct: retail.profitPct,
     rows,
     issues,

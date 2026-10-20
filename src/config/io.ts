@@ -9,8 +9,25 @@ export type LoadResult =
 
 type Migration = (old: Record<string, unknown>) => Record<string, unknown>;
 
-/** migrations[v] upgrades a v-file to v+1. Empty while only v1 exists. */
-const migrations: Record<number, Migration> = {};
+const V1_MONTH_LABELS: [string, string, string][] = [
+  ['peak', 'Szczyt', 'Peak'],
+  ['pre1', 'Przedszczyt 1', 'Pre-peak 1'],
+  ['pre2', 'Przedszczyt 2', 'Pre-peak 2'],
+  ['pre3', 'Przedszczyt 3', 'Pre-peak 3'],
+];
+
+/** migrations[v] upgrades a v-file to v+1. */
+const migrations: Record<number, Migration> = {
+  // v1 → v2: fixed peak + 3 pre-peak discounts become an editable list of month types (same ids).
+  1: (old) => {
+    const months = old.months as { peakBp?: unknown; prePeakBp?: unknown[] } | undefined;
+    const discounts = [months?.peakBp, ...(months?.prePeakBp ?? [])];
+    return {
+      ...old,
+      months: V1_MONTH_LABELS.map(([id, pl, en], i) => ({ id, label: { pl, en }, discountBp: discounts[i] })),
+    };
+  },
+};
 
 /** Parses a config file. Never returns a partially applied config. */
 export function parseConfigFile(text: string): LoadResult {

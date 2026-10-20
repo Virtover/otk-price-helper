@@ -106,6 +106,16 @@ body {
   background: rgba(214, 161, 66, 0.08);
 }
 
+/* Price above the optional maximum from step 1. */
+.price-cell.above-max {
+  box-shadow: inset 0 0 0 2px var(--mantine-color-orange-5);
+  background-color: color-mix(in srgb, var(--mantine-color-orange-2) 30%, transparent);
+}
+
+.price-cell.above-max:hover {
+  box-shadow: inset 0 0 0 2px var(--mantine-color-orange-7);
+}
+
 /* Empty state. */
 .empty-state {
   border: 1.5px dashed var(--mantine-color-default-border);

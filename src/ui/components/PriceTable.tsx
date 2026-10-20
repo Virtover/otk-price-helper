@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { CSV_COLUMNS, type CsvColumn } from '../../core/csv';
 import { type Locale, formatMoney } from '../../core/money';
 import { type Rat, cmp, rat } from '../../core/rational';
-import { MONTH_TYPES, type Config, type PriceRow } from '../../core/types';
-import { customerLabel, moneyRat, pct } from '../format';
+import { monthIds } from '../../core/pricing';
+import type { Config, PriceRow } from '../../core/types';
+import { customerLabel, monthLabel, moneyRat, pct } from '../format';
 import { EditablePrice } from './EditablePrice';
 import { STATUS_COLOR, statusBg } from './status';
 
@@ -76,7 +77,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
           size="xs"
           value={month}
           onChange={setMonth}
-          data={MONTH_TYPES.map((m) => ({ value: m, label: t(`months.${m}`) }))}
+          data={monthIds(config).map((m) => ({ value: m, label: monthLabel(config, m, lang, t) }))}
         />
         <Select
           label={t('details.filterCustomer')}
@@ -115,7 +116,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
               >
                 <Table.Td ta="right">{r.qty.toString()}</Table.Td>
                 <Table.Td>{customerLabel(config.customers, r.customerId, lang)}</Table.Td>
-                <Table.Td>{t(`months.${r.month}`)}</Table.Td>
+                <Table.Td>{monthLabel(config, r.month, lang, t)}</Table.Td>
                 <Table.Td ta="right">
                   <Group justify="flex-end">
                     <EditablePrice
@@ -143,6 +144,11 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
                     {r.stale && (
                       <Badge size="xs" variant="outline" color="gray">
                         {t('status.stale')}
+                      </Badge>
+                    )}
+                    {r.aboveMax && (
+                      <Badge size="xs" variant="outline" color="orange">
+                        ▲ {t('status.aboveMax')}
                       </Badge>
                     )}
                   </Group>

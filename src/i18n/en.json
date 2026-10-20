@@ -16,7 +16,9 @@
     "cost": "Purchase cost (net, per unit)",
     "qty": "Quantity bought",
     "qtyHint": "Units in the shop's purchase order",
-    "nameRequired": "Product name is required for export"
+    "nameRequired": "Product name is required for export",
+    "maxPrice": "Maximum price (net, per unit)",
+    "maxPriceHint": "Optional — prices above it are highlighted"
   },
   "parse": {
     "empty": "Enter a value",
@@ -30,7 +32,7 @@
     "floor": "Minimum price",
     "floorHint": "unit cost + min. profit (net)",
     "base": "Maximum price",
-    "baseHint": "1 unit · {{customer}} · peak",
+    "baseHint": "1 unit · {{customer}} · {{month}}",
     "retailProfit": "Retail profit",
     "retailProfitHint": "of purchase cost",
     "net": "net",
@@ -39,10 +41,6 @@
     "resetBase": "Reset to calculated ({{value}})"
   },
   "months": {
-    "peak": "Peak",
-    "pre1": "Pre-peak 1",
-    "pre2": "Pre-peak 2",
-    "pre3": "Pre-peak 3",
     "sale": "Sale",
     "current": "now",
     "names": [
@@ -75,7 +73,8 @@
     "override": "edited",
     "error": "below minimum",
     "stale": "not recalculated",
-    "legend": "Legend"
+    "legend": "Legend",
+    "aboveMax": "above max."
   },
   "details": {
     "show": "Show details",
@@ -109,10 +108,14 @@
     "netUnit": "Unit net price",
     "reset": "Reset to calculated",
     "save": "Apply",
-    "editHint": "Net price per unit. Gross and package totals are recalculated from it.",
     "title": "Change this price",
     "edit": "Edit price",
-    "resetTo": "Reset to calculated ({{value}})"
+    "resetTo": "Reset to calculated ({{value}})",
+    "individually": "Edit individually",
+    "shiftHint": "The change shifts all prices according to the discounts (except sale). Individually edited prices stay as they are.",
+    "shiftSaleHint": "The change shifts all sale prices according to the discounts.",
+    "individualHint": "Changes only this one combination. Gross and package totals are recalculated.",
+    "resetShift": "Reset to calculated prices"
   },
   "breakdown": {
     "title": "Why this price?",
@@ -146,7 +149,9 @@
     "grossNotDivisible": "Gross unit × quantity would be this — {{diff}} different, because VAT is calculated on the net total as on an invoice",
     "profitUnit": "Profit per unit ({{pct}} of purchase cost)",
     "belowFloor": "Below the minimum price {{threshold}} by this amount per unit",
-    "belowSale": "Below the sale price {{threshold}} by this amount per unit"
+    "belowSale": "Below the sale price {{threshold}} by this amount per unit",
+    "saleBaseOverride": "= sale base (shifted manually)",
+    "aboveMax": "Above the maximum price {{max}} by this amount per unit"
   },
   "issues": {
     "title": "Messages",
@@ -168,8 +173,6 @@
     "customerLabelEmpty": "Customer type needs a name in both languages.",
     "customerOrderError": "“{{b}}” has a smaller discount than “{{a}}” — list customers from smallest to largest discount.",
     "customerOrderEqual": "“{{a}}” and “{{b}}” have the same discount.",
-    "monthOrderError": "{{b}} has a smaller discount than {{a}}.",
-    "monthOrderEqual": "{{a}} and {{b}} have the same discount.",
     "saleFactorRange": "Sale factor must be above 0 and at most 1000 %.",
     "costNonPositive": "Purchase cost must be greater than 0.",
     "qtyNonPositive": "Quantity must be at least 1.",
@@ -181,7 +184,14 @@
     "saleBelowCost": "Sale is below cost — the deepest sale combination loses {{loss}} per unit.",
     "saleAboveRegular": "{{count}} sale prices are higher than the same combination in the cheapest regular month.",
     "rowsBelowFloor": "{{count}} prices are below the minimum.",
-    "staleRows": "{{count}} rows were not recalculated after manual edits (smart updates are off)."
+    "staleRows": "{{count}} rows were not recalculated after manual edits (smart updates are off).",
+    "maxPriceNonPositive": "Maximum price must be greater than 0.",
+    "maxBelowFloor": "Maximum price {{max}} is below the minimum price {{floor}} — no price can satisfy both.",
+    "rowsAboveMax": "{{count}} prices are above the maximum price {{max}}.",
+    "monthNone": "Add at least one month type.",
+    "monthDuplicateId": "Duplicate month type.",
+    "monthLabelEmpty": "Month type needs a name in both languages.",
+    "calendarUnknown": "The calendar refers to a month type that does not exist."
   },
   "settings": {
     "costs": "Costs and profit",
@@ -234,7 +244,10 @@
       "noVersion": "The file is not an OTK Price Helper configuration (missing schemaVersion).",
       "newerVersion": "The file was created by a newer version of the app (schema {{version}}).",
       "invalid": "The file has invalid entries — nothing was changed:"
-    }
+    },
+    "monthsHint": "Your own names and discounts, e.g. summer and winter peak. Sale is set separately.",
+    "addMonth": "Add month type",
+    "newMonth": "new month"
   },
   "export": {
     "csv": "Export CSV",

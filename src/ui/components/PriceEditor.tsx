@@ -1,4 +1,4 @@
-import { Button, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Checkbox, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoneyInput, parseMoney } from '../../core/money';
@@ -11,10 +11,19 @@ interface Props {
   calculated?: bigint;
   lang: Locale;
   onEdit: (key: string, value?: bigint) => void;
+  individually: boolean;
+  onIndividually: (value: boolean) => void;
+  /** The base this row derives from was moved by an earlier shift edit. */
+  shifted: boolean;
+  onResetShift: () => void;
 }
 
-/** Explicit "change this price" box: net unit price input + apply / reset. */
-export function PriceEditor({ row, calculated, lang, onEdit }: Props) {
+/**
+ * Explicit "change this price" box. By default an edit shifts every price that
+ * shares this row's base (according to discounts); "edit individually" changes only this row.
+ */
+export function PriceEditor(props: Props) {
+  const { row, calculated, lang, onEdit, individually, onIndividually, shifted, onResetShift } = props;
   const { t } = useTranslation();
   const [text, setText] = useState(() => formatMoneyInput(row.netUnit, lang));
   const [error, setError] = useState<string>();
@@ -36,9 +45,19 @@ export function PriceEditor({ row, calculated, lang, onEdit }: Props) {
   return (
     <Paper withBorder p="sm" radius="md" data-testid="price-editor">
       <Stack gap={6}>
-        <Text fw={600} size="sm">
-          {t('edit.title')}
-        </Text>
+        <Group justify="space-between" wrap="nowrap">
+          <Text fw={600} size="sm">
+            {t('edit.title')}
+          </Text>
+          <Checkbox
+            size="xs"
+            radius="sm"
+            label={t('edit.individually')}
+            checked={individually}
+            onChange={(e) => onIndividually(e.currentTarget.checked)}
+            data-testid="price-editor-individually"
+          />
+        </Group>
         <Group gap="xs" align="flex-start" wrap="nowrap">
           <TextInput
             aria-label={t('edit.netUnit')}
@@ -57,16 +76,26 @@ export function PriceEditor({ row, calculated, lang, onEdit }: Props) {
           <Button onClick={apply} disabled={!changed} data-testid="price-editor-apply">
             {t('edit.save')}
           </Button>
-          {row.overridden && (
+          {row.overridden ? (
             <Button variant="default" onClick={() => onEdit(row.key, undefined)} data-testid="price-editor-reset">
               {calculated !== undefined
                 ? t('edit.resetTo', { value: money(calculated, lang) })
                 : t('edit.reset')}
             </Button>
+          ) : (
+            shifted && (
+              <Button variant="default" onClick={onResetShift} data-testid="price-editor-reset-shift">
+                {t('edit.resetShift')}
+              </Button>
+            )
           )}
         </Group>
-        <Text size="xs" c="dimmed">
-          {t('edit.editHint')}
+        <Text size="xs" c="dimmed" data-testid="price-editor-hint">
+          {individually
+            ? t('edit.individualHint')
+            : row.month === 'sale'
+              ? t('edit.shiftSaleHint')
+              : t('edit.shiftHint')}
         </Text>
       </Stack>
     </Paper>
