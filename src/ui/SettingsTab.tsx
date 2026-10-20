@@ -9,7 +9,6 @@ import {
   Paper,
   SegmentedControl,
   Select,
-  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -44,6 +43,11 @@ interface Props {
 
 type Notice = { color: string; text: string; details?: string[] };
 
+/** Field widths: values are 1–5 characters, hints wrap under the input. */
+const NARROW = 100;
+const WIDE = 180;
+const LABEL_W = 140;
+
 export function SettingsTab({ state, dispatch }: Props) {
   const { t } = useTranslation();
   const { config, lang } = state;
@@ -67,11 +71,21 @@ export function SettingsTab({ state, dispatch }: Props) {
     error: messageFor(path, 'error'),
     warning: messageFor(path, 'warning'),
   });
+  /** Fields in tables only turn red; their messages are listed under the table. */
+  const tableFeedback = (path: string) => ({ ...feedback(path), inlineMessages: false });
+  const messagesUnder = (...prefixes: string[]) => (
+    <FieldMessages
+      items={issues
+        .filter((i) => i.level !== 'info' && prefixes.some((p) => i.path?.startsWith(p)))
+        .map((i) => ({ level: i.level, text: issueMessage(i, lang, t) }))}
+    />
+  );
 
   // Field factories ---------------------------------------------------------------
   const percentField = (path: string, label: string, bp: number, set: (v: number) => void, hint?: string) => (
     <DecimalField
       {...feedback(path)}
+      w={WIDE}
       label={label}
       description={hint}
       value={BigInt(bp)}
@@ -84,6 +98,7 @@ export function SettingsTab({ state, dispatch }: Props) {
   const moneyField = (path: string, label: string, gr: number, set: (v: number) => void, hint?: string) => (
     <DecimalField
       {...feedback(path)}
+      w={WIDE}
       label={label}
       description={hint}
       value={BigInt(gr)}
@@ -98,7 +113,8 @@ export function SettingsTab({ state, dispatch }: Props) {
     multiplierMode ? (
       <DecimalField
         key={`${path}-multiplier`}
-        {...feedback(path)}
+        {...tableFeedback(path)}
+        w={NARROW}
         label={label}
         aria-label={label ?? t('settings.multiplier')}
         value={BigInt(10000 - bp)}
@@ -110,7 +126,8 @@ export function SettingsTab({ state, dispatch }: Props) {
     ) : (
       <DecimalField
         key={`${path}-percent`}
-        {...feedback(path)}
+        {...tableFeedback(path)}
+        w={NARROW}
         label={label}
         aria-label={label ?? t('settings.discount')}
         value={BigInt(bp)}
@@ -210,7 +227,7 @@ export function SettingsTab({ state, dispatch }: Props) {
       </Paper>
 
       <Section title={t('settings.costs')}>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+        <Group gap="md" align="flex-start">
           {percentField('handling.percentBp', t('settings.handlingPercent'), config.handling.percentBp, (v) =>
             update((c) => (c.handling.percentBp = v)), t('settings.handlingPercentHint'))}
           {moneyField('handling.fixedGr', t('settings.handlingFixed'), config.handling.fixedGr, (v) =>
@@ -220,7 +237,7 @@ export function SettingsTab({ state, dispatch }: Props) {
             update((c) => (c.minProfit.percentBp = v)), t('settings.minProfitPercentHint'))}
           {moneyField('minProfit.fixedGr', t('settings.minProfitFixed'), config.minProfit.fixedGr, (v) =>
             update((c) => (c.minProfit.fixedGr = v)), t('settings.minProfitFixedHint'))}
-        </SimpleGrid>
+        </Group>
       </Section>
 
       <Section title={t('settings.discounts')} hint={t('settings.discountsHint')}>
@@ -238,10 +255,10 @@ export function SettingsTab({ state, dispatch }: Props) {
           />
         </Group>
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+        <Group gap={40} align="flex-start">
           <Stack gap="xs">
             <Title order={5}>{t('settings.packages')}</Title>
-            <Table verticalSpacing={4}>
+            <Table verticalSpacing={4} style={{ width: 'auto' }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>{t('settings.packageQty')}</Table.Th>
@@ -254,7 +271,8 @@ export function SettingsTab({ state, dispatch }: Props) {
                   <Table.Tr key={i}>
                     <Table.Td>
                       <DecimalField
-                        {...feedback(`packages.${i}.qty`)}
+                        {...tableFeedback(`packages.${i}.qty`)}
+                        w={NARROW}
                         aria-label={t('settings.packageQty')}
                         value={BigInt(p.qty)}
                         format={(v) => v.toString()}
@@ -273,6 +291,7 @@ export function SettingsTab({ state, dispatch }: Props) {
                 ))}
               </Table.Tbody>
             </Table>
+            {messagesUnder('packages.')}
             <Button
               variant="light"
               size="xs"
@@ -289,15 +308,18 @@ export function SettingsTab({ state, dispatch }: Props) {
 
           <Stack gap="xs">
             <Title order={5}>{t('settings.months')}</Title>
-            <SimpleGrid cols={2}>
+            <Stack gap="xs">
               {months.map((m) => (
                 <div key={m.key}>{discountField(m.path, m.bp, (v) => update((c) => m.set(c, v)), t(`months.${m.key}`))}</div>
               ))}
-            </SimpleGrid>
-            <Title order={5} mt="sm">
-              {t('settings.sale')}
-            </Title>
+            </Stack>
+            <div style={{ maxWidth: 220 }}>{messagesUnder('months.')}</div>
+          </Stack>
+
+          <Stack gap="xs" w={WIDE + 40}>
+            <Title order={5}>{t('settings.sale')}</Title>
             <DecimalField
+              w={WIDE + 40}
               {...feedback('sale.factorBp')}
               label={t('settings.saleFactor')}
               description={multiplierMode ? t('settings.saleFactorHintMultiplier') : t('settings.saleFactorHintPercent')}
@@ -311,14 +333,14 @@ export function SettingsTab({ state, dispatch }: Props) {
                 : { rightSection: <Text size="xs">%</Text> })}
             />
           </Stack>
-        </SimpleGrid>
+        </Group>
 
-        <Stack gap="xs">
+        <Stack gap="xs" w="fit-content">
           <Title order={5}>{t('settings.customers')}</Title>
           <Text size="xs" c="dimmed">
             {t('settings.customersHint')}
           </Text>
-          <Table verticalSpacing={4}>
+          <Table verticalSpacing={4} style={{ width: 'auto' }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t('settings.labelPl')}</Table.Th>
@@ -335,9 +357,10 @@ export function SettingsTab({ state, dispatch }: Props) {
                     <Table.Td>
                       <TextInput
                         id={fieldId(`customers.${i}.label`)}
+                        w={LABEL_W}
                         aria-label={t('settings.labelPl')}
                         value={cu.label.pl}
-                        error={labelError}
+                        error={!!labelError}
                         onChange={(e) => {
                           const v = e.currentTarget.value;
                           update((c) => (c.customers[i]!.label.pl = v));
@@ -346,9 +369,10 @@ export function SettingsTab({ state, dispatch }: Props) {
                     </Table.Td>
                     <Table.Td>
                       <TextInput
+                        w={LABEL_W}
                         aria-label={t('settings.labelEn')}
                         value={cu.label.en}
-                        error={labelError ? ' ' : undefined}
+                        error={!!labelError}
                         onChange={(e) => {
                           const v = e.currentTarget.value;
                           update((c) => (c.customers[i]!.label.en = v));
@@ -392,11 +416,7 @@ export function SettingsTab({ state, dispatch }: Props) {
               })}
             </Table.Tbody>
           </Table>
-          {messageFor('customers', 'error') && (
-            <Text size="sm" c="red">
-              {messageFor('customers', 'error')}
-            </Text>
-          )}
+          {messagesUnder('customers')}
           <Button
             id={fieldId('customers')}
             variant="light"
@@ -424,10 +444,11 @@ export function SettingsTab({ state, dispatch }: Props) {
             <Text size="xs" c="dimmed" mb="sm">
               {t('settings.calendarHint')}
             </Text>
-            <SimpleGrid cols={{ base: 2, sm: 4, md: 6 }}>
+            <Group gap="sm">
               {config.calendar.map((m, i) => (
                 <Select
                   key={i}
+                  w={130}
                   size="xs"
                   label={(t('months.names', { returnObjects: true }) as string[])[i]}
                   value={m}
@@ -436,7 +457,7 @@ export function SettingsTab({ state, dispatch }: Props) {
                   data={MONTH_TYPES.map((mt) => ({ value: mt, label: t(`months.${mt}`) }))}
                 />
               ))}
-            </SimpleGrid>
+            </Group>
           </Accordion.Panel>
         </Accordion.Item>
       </Accordion>
@@ -459,6 +480,19 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
         {children}
       </Stack>
     </Paper>
+  );
+}
+
+function FieldMessages({ items }: { items: { level: string; text: string }[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Stack gap={2}>
+      {items.map((m, i) => (
+        <Text key={i} size="xs" c={m.level === 'error' ? 'red' : 'orange.7'}>
+          {m.text}
+        </Text>
+      ))}
+    </Stack>
   );
 }
 

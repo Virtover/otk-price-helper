@@ -1,8 +1,13 @@
 {
   "app": {
     "title": "OTK Price Helper",
-    "tabs": { "calculator": "Kalkulator", "settings": "Ustawienia" },
-    "language": "Język"
+    "tabs": {
+      "calculator": "Kalkulator",
+      "settings": "Ustawienia"
+    },
+    "language": "Język",
+    "themeLight": "Jasny motyw",
+    "themeDark": "Ciemny motyw"
   },
   "input": {
     "name": "Nazwa produktu",
@@ -39,15 +44,28 @@
     "pre3": "Przedszczyt 3",
     "sale": "Wyprzedaż",
     "current": "teraz",
-    "names": ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
+    "names": [
+      "Styczeń",
+      "Luty",
+      "Marzec",
+      "Kwiecień",
+      "Maj",
+      "Czerwiec",
+      "Lipiec",
+      "Sierpień",
+      "Wrzesień",
+      "Październik",
+      "Listopad",
+      "Grudzień"
+    ]
   },
   "matrix": {
     "package": "Pakiet",
     "unit": "szt.",
     "units": "{{qty}} szt.",
     "single": "1 szt.",
-    "total": "razem",
-    "clickHint": "Kliknij cenę, aby zobaczyć, jak została wyliczona."
+    "clickHint": "Kliknij cenę, aby zobaczyć wyliczenie lub ją zmienić.",
+    "cellHint": "W komórce: netto za szt. / za cały pakiet, pod spodem brutto za szt. / za pakiet."
   },
   "status": {
     "ok": "OK",
@@ -90,7 +108,10 @@
     "netUnit": "Cena netto za sztukę",
     "reset": "Przywróć wyliczoną",
     "save": "Zastosuj",
-    "editHint": "Edytuj cenę netto za sztukę. Cena brutto jest zawsze z niej wyliczana."
+    "editHint": "Cena netto za sztukę. Brutto i sumy pakietu są z niej przeliczane.",
+    "title": "Zmień cenę tej kombinacji",
+    "edit": "Edytuj cenę",
+    "resetTo": "Przywróć wyliczoną ({{value}})"
   },
   "breakdown": {
     "title": "Skąd ta cena?",
@@ -196,7 +217,7 @@
     "saleFactor": "Cena wyprzedażowa",
     "saleFactorHintPercent": "% kosztu jednostkowego (100 % = sprzedaż po koszcie), netto; VAT doliczany",
     "saleFactorHintMultiplier": "× koszt jednostkowy (1 = sprzedaż po koszcie), netto; VAT doliczany",
-    "calendar": "Kalendarz (zaawansowane)",
+    "calendar": "Kalendarz",
     "calendarHint": "Który rodzaj miesiąca obowiązuje w danym miesiącu kalendarzowym — służy do wybrania bieżącego miesiąca.",
     "file": "Konfiguracja",
     "save": "Zapisz do pliku",

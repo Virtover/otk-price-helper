@@ -1,8 +1,13 @@
 {
   "app": {
     "title": "OTK Price Helper",
-    "tabs": { "calculator": "Calculator", "settings": "Settings" },
-    "language": "Language"
+    "tabs": {
+      "calculator": "Calculator",
+      "settings": "Settings"
+    },
+    "language": "Language",
+    "themeLight": "Light theme",
+    "themeDark": "Dark theme"
   },
   "input": {
     "name": "Product name",
@@ -39,15 +44,28 @@
     "pre3": "Pre-peak 3",
     "sale": "Sale",
     "current": "now",
-    "names": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    "names": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ]
   },
   "matrix": {
     "package": "Package",
     "unit": "unit",
     "units": "{{qty}} pcs",
     "single": "1 pc",
-    "total": "total",
-    "clickHint": "Click a price to see how it was calculated."
+    "clickHint": "Click a price to see how it was calculated or to change it.",
+    "cellHint": "Each cell: net per unit / per whole package, below it gross per unit / per package."
   },
   "status": {
     "ok": "OK",
@@ -90,7 +108,10 @@
     "netUnit": "Unit net price",
     "reset": "Reset to calculated",
     "save": "Apply",
-    "editHint": "Edit the net unit price. The gross price is always derived from it."
+    "editHint": "Net price per unit. Gross and package totals are recalculated from it.",
+    "title": "Change this price",
+    "edit": "Edit price",
+    "resetTo": "Reset to calculated ({{value}})"
   },
   "breakdown": {
     "title": "Why this price?",
@@ -196,7 +217,7 @@
     "saleFactor": "Sale price",
     "saleFactorHintPercent": "% of unit cost (100 % = sell at cost), net; VAT is added on top",
     "saleFactorHintMultiplier": "× unit cost (1 = sell at cost), net; VAT is added on top",
-    "calendar": "Calendar (advanced)",
+    "calendar": "Calendar",
     "calendarHint": "Which month type applies in each calendar month — used to pre-select the current month.",
     "file": "Configuration",
     "save": "Save to file",

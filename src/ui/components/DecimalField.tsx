@@ -10,13 +10,15 @@ interface Props extends Omit<TextInputProps, 'value' | 'onChange' | 'error'> {
   onValue: (value: bigint) => void;
   error?: ReactNode;
   warning?: ReactNode;
+  /** false: only colour the field; the caller shows error/warning text elsewhere (narrow table cells). */
+  inlineMessages?: boolean;
 }
 
 /**
  * Text field for an exact decimal. Keeps the user's text while typing and
  * reports a parse error inline; the parsed value is only emitted when valid.
  */
-export function DecimalField({ value, format, parse, onValue, error, warning, ...rest }: Props) {
+export function DecimalField({ value, format, parse, onValue, error, warning, w, inlineMessages = true, ...rest }: Props) {
   const { t } = useTranslation();
   const [text, setText] = useState(() => format(value));
   const [parseError, setParseError] = useState<string>();
@@ -31,12 +33,12 @@ export function DecimalField({ value, format, parse, onValue, error, warning, ..
   }, [value]);
 
   return (
-    <Stack gap={2}>
+    <Stack gap={2} w={w}>
       <TextInput
         {...rest}
         value={text}
         inputMode="decimal"
-        error={parseError ?? error}
+        error={parseError ?? (inlineMessages ? error : !!error)}
         onChange={(e) => {
           const next = e.currentTarget.value;
           setText(next);
@@ -47,7 +49,7 @@ export function DecimalField({ value, format, parse, onValue, error, warning, ..
           } else setParseError(t(`parse.${r.error}`));
         }}
       />
-      {warning && !parseError && !error && (
+      {inlineMessages && warning && !parseError && !error && (
         <Text size="xs" c="orange.7">
           {warning}
         </Text>

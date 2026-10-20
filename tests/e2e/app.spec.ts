@@ -41,6 +41,24 @@ test('breakdown explains a price', async ({ page }) => {
   await expect(panel).toContainText('12,51');
 });
 
+test('edit a single price from the matrix', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await pickMonth(page, 'Szczyt');
+  const cell = page.getByTestId('cell-50|retail|peak');
+  await expect(cell).toContainText('22,12 / 1106,00');
+  await expect(cell).toContainText('brutto 27,21 / 1360,38');
+
+  await cell.click();
+  await page.getByTestId('price-editor-input').fill('25');
+  await page.getByTestId('price-editor-apply').click();
+  await expect(cell).toContainText('25,00 / 1250,00');
+  await expect(cell).toHaveAttribute('data-status', 'override');
+
+  await page.getByTestId('price-editor-reset').click();
+  await expect(cell).toContainText('22,12 / 1106,00');
+  await expect(page.getByTestId('price-editor-reset')).toHaveCount(0);
+});
+
 test('manual edit with smart updates recalculates the row', async ({ page }) => {
   await fill(page, '10', '1000');
   await page.getByText('Pokaż szczegóły').click();
@@ -146,3 +164,16 @@ function writeTemp(path: string, content: string) {
   writeFileSync(path, content);
   return path;
 }
+
+test('light / dark theme toggle is remembered', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-mantine-color-scheme', 'light');
+  await page.getByTestId('theme-toggle').click();
+  await expect(html).toHaveAttribute('data-mantine-color-scheme', 'dark');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-mantine-color-scheme', 'dark');
+  await page.getByRole('button', { name: 'Jasny motyw' }).click();
+  await expect(html).toHaveAttribute('data-mantine-color-scheme', 'light');
+});

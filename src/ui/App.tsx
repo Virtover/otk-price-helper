@@ -1,4 +1,14 @@
-import { Container, Group, SegmentedControl, Tabs, Title } from '@mantine/core';
+import {
+  ActionIcon,
+  Container,
+  Group,
+  SegmentedControl,
+  Tabs,
+  Title,
+  Tooltip,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { confirmDialog, isTauri } from '../lib/fileio';
@@ -13,6 +23,9 @@ export function App() {
   const { t, i18n } = useTranslation();
   const [state, dispatch] = useAppState();
   const [tab, setTab] = useState<Tab>('calculator');
+  const { setColorScheme } = useMantineColorScheme();
+  const scheme = useComputedColorScheme('light');
+  const themeLabel = scheme === 'dark' ? t('app.themeLight') : t('app.themeDark');
   const dirty = isDirty(state);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -56,16 +69,29 @@ export function App() {
     <Container size="xl" py="md">
       <Group justify="space-between" mb="md">
         <Title order={2}>{t('app.title')}</Title>
-        <SegmentedControl
-          aria-label={t('app.language')}
-          value={state.lang}
-          onChange={(v) => dispatch({ type: 'setLang', lang: v === 'en' ? 'en' : 'pl' })}
-          data={[
-            { value: 'pl', label: 'PL' },
-            { value: 'en', label: 'EN' },
-          ]}
-          data-testid="lang-switch"
-        />
+        <Group gap="xs">
+          <Tooltip label={themeLabel}>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              aria-label={themeLabel}
+              data-testid="theme-toggle"
+              onClick={() => setColorScheme(scheme === 'dark' ? 'light' : 'dark')}
+            >
+              {scheme === 'dark' ? '☀' : '☾'}
+            </ActionIcon>
+          </Tooltip>
+          <SegmentedControl
+            aria-label={t('app.language')}
+            value={state.lang}
+            onChange={(v) => dispatch({ type: 'setLang', lang: v === 'en' ? 'en' : 'pl' })}
+            data={[
+              { value: 'pl', label: 'PL' },
+              { value: 'en', label: 'EN' },
+            ]}
+            data-testid="lang-switch"
+          />
+        </Group>
       </Group>
       <Tabs value={tab} onChange={(v) => setTab(v === 'settings' ? 'settings' : 'calculator')} keepMounted={false}>
         <Tabs.List mb="md">

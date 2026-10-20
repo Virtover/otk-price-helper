@@ -89,7 +89,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
   return (
     <Stack gap="md">
       <Paper withBorder p="md" radius="md">
-        <Group align="flex-start" grow preventGrowOverflow={false} wrap="wrap">
+        <Group align="flex-start" gap="md" wrap="wrap">
           <TextInput
             id={fieldId('input.name')}
             label={t('input.name')}
@@ -100,7 +100,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
               setInput('name')(e);
             }}
             error={nameError ? t('input.nameRequired') : undefined}
-            miw={200}
+            w={300}
           />
           <TextInput
             id={fieldId('input.costGr')}
@@ -110,7 +110,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             inputMode="decimal"
             rightSection={<Text size="xs">{lang === 'pl' ? 'zł' : 'PLN'}</Text>}
             error={fieldError('input.costGr', cost, input.cost)}
-            miw={180}
+            w={220}
           />
           <TextInput
             id={fieldId('input.qty')}
@@ -121,7 +121,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             inputMode="numeric"
             rightSection={<Text size="xs">{t('common.pcs')}</Text>}
             error={fieldError('input.qty', qty, input.qty)}
-            miw={160}
+            w={220}
           />
         </Group>
       </Paper>
@@ -235,7 +235,6 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             row={selected}
             config={config}
             lang={lang}
-            editable={state.showDetails}
             onClose={() => setSelectedKey(undefined)}
             onEdit={editRow}
           />

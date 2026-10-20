@@ -33,8 +33,18 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
           }))}
         />
       </ScrollArea>
+      <Text size="xs" c="dimmed">
+        {t('matrix.cellHint')}
+      </Text>
       <ScrollArea type="auto">
-        <Table withTableBorder withColumnBorders verticalSpacing={6} horizontalSpacing="sm" data-testid="price-matrix">
+        <Table
+          withTableBorder
+          withColumnBorders
+          verticalSpacing={0}
+          horizontalSpacing="sm"
+          style={{ width: 'auto' }}
+          data-testid="price-matrix"
+        >
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t('matrix.package')}</Table.Th>
@@ -48,7 +58,7 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
           <Table.Tbody>
             {list.tiers.map((tier) => (
               <Table.Tr key={tier.qty.toString()}>
-                <Table.Th>
+                <Table.Th style={{ whiteSpace: 'nowrap' }}>
                   {tier.implicit ? t('matrix.single') : t('matrix.units', { qty: tier.qty.toString() })}
                 </Table.Th>
                 {config.customers.map((c) => {
@@ -58,24 +68,23 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                       <UnstyledButton
                         w="100%"
                         px="sm"
-                        py={6}
+                        py={4}
                         onClick={() => onSelect(row)}
                         data-testid={`cell-${row.key}`}
                         data-status={row.status}
-                        style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+                        style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
                       >
-                        <Text fw={600} size="sm">
-                          {formatMoney(row.netUnit, lang)}
+                        <Text size="sm">
+                          <Text span fw={700} inherit>
+                            {formatMoney(row.netUnit, lang)}
+                          </Text>
+                          {!tier.implicit && ` / ${formatMoney(row.netTotal, lang)}`}
                           {row.stale && ' *'}
                         </Text>
                         <Text size="xs" c="dimmed">
                           {t('summary.gross')} {formatMoney(row.grossUnit, lang)}
+                          {!tier.implicit && ` / ${formatMoney(row.grossTotal, lang)}`}
                         </Text>
-                        {!tier.implicit && (
-                          <Text size="xs" c="dimmed">
-                            {t('matrix.total')} {formatMoney(row.netTotal, lang)}
-                          </Text>
-                        )}
                       </UnstyledButton>
                     </Table.Td>
                   );

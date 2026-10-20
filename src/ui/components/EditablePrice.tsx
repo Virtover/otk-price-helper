@@ -52,21 +52,26 @@ export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 
     );
   }
 
+  const startEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setText(formatMoneyInput(value, lang));
+    setEditing(true);
+  };
+
   return (
-    <Group gap={4} wrap="nowrap">
-      <Tooltip label={t('edit.editHint')} openDelay={500}>
-        <UnstyledButton
-          data-testid={testId}
-          fw={fw}
-          style={{ borderBottom: '1px dashed var(--mantine-color-dimmed)', fontVariantNumeric: 'tabular-nums' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setText(formatMoneyInput(value, lang));
-            setEditing(true);
-          }}
-        >
-          {formatMoney(value, lang)}
-        </UnstyledButton>
+    <Group gap={2} wrap="nowrap">
+      <UnstyledButton
+        data-testid={testId}
+        fw={fw}
+        style={{ borderBottom: '1px dashed var(--mantine-color-dimmed)', fontVariantNumeric: 'tabular-nums' }}
+        onClick={startEditing}
+      >
+        {formatMoney(value, lang)}
+      </UnstyledButton>
+      <Tooltip label={t('edit.edit')}>
+        <ActionIcon size="xs" variant="subtle" aria-label={t('edit.edit')} data-testid={`${testId}-pencil`} onClick={startEditing}>
+          ✎
+        </ActionIcon>
       </Tooltip>
       {overridden && (
         <Tooltip label={t('edit.reset')}>

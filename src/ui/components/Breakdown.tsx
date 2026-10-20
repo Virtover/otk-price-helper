@@ -4,7 +4,7 @@ import { explainRow } from '../../core/explain';
 import type { Locale } from '../../core/money';
 import type { Config, PriceList, PriceRow } from '../../core/types';
 import { customerLabel, formatParams, formatStepValue } from '../format';
-import { EditablePrice } from './EditablePrice';
+import { PriceEditor } from './PriceEditor';
 import { STATUS_COLOR } from './status';
 
 interface Props {
@@ -12,15 +12,15 @@ interface Props {
   row: PriceRow | undefined;
   config: Config;
   lang: Locale;
-  editable: boolean;
   onClose: () => void;
   onEdit: (key: string, value?: bigint) => void;
 }
 
 /** "Why this price?" — the full derivation of one row. */
-export function Breakdown({ list, row, config, lang, editable, onClose, onEdit }: Props) {
+export function Breakdown({ list, row, config, lang, onClose, onEdit }: Props) {
   const { t } = useTranslation();
   const steps = row ? explainRow(list, row, config) : [];
+  const calculated = steps.find((s) => s.key === 'netOverride')?.params?.calculated;
 
   return (
     <Drawer opened={row !== undefined} onClose={onClose} position="right" size="lg" title={t('breakdown.title')}>
@@ -38,18 +38,12 @@ export function Breakdown({ list, row, config, lang, editable, onClose, onEdit }
               {t(`status.${row.status}`)}
             </Badge>
           </Group>
-          {editable && (
-            <Group gap="xs">
-              <Text size="sm">{t('edit.netUnit')}:</Text>
-              <EditablePrice
-                value={row.netUnit}
-                overridden={row.overridden}
-                lang={lang}
-                testId="breakdown-edit"
-                onCommit={(v) => onEdit(row.key, v)}
-              />
-            </Group>
-          )}
+          <PriceEditor
+            row={row}
+            calculated={calculated && typeof calculated === 'object' && 'money' in calculated ? calculated.money : undefined}
+            lang={lang}
+            onEdit={onEdit}
+          />
           <Divider />
           <Table verticalSpacing={4} fz="sm">
             <Table.Tbody>
