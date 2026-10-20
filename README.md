@@ -1,4 +1,10 @@
-# OTK Price Helper
+<p align="center">
+  <img src="app-icon.svg" alt="OTK Price Helper icon" width="128" height="128" />
+</p>
+
+<h1 align="center">OTK Price Helper</h1>
+
+<p align="center"><em>Set your prices in seconds</em></p>
 
 Desktop app (Windows, Tauri 2 + React + TypeScript) that calculates an online-shop price list for one
 product: every package size × customer type × month type, net and gross, per unit and per package.
