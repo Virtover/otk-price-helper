@@ -29,7 +29,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | koszt jednostkowy | unit cost | `K` | `c·(1+h) + ⌈H/N⌉` |
 | minimalny zysk | minimum profit | `p%`, `P` | per unit, relative to `c` |
 | próg | floor | `F` | `K + c·p% + P` — lowest allowed net unit price |
-| cena bazowa | base price | `B` | net price: 1 unit, retail customer, peak month |
+| cena maksymalna (UI; spec: cena bazowa) | maximum price (UI; spec: base price) | `B` | net price: 1 unit, retail customer, peak month — the undiscounted list price |
 | mnożnik | multiplier | `m` | `1 − discount%` |
 | pakiet | package tier | — | quantity threshold with a discount |
 | rodzaj klienta | customer type | — | retail / wholesale 1–4 |

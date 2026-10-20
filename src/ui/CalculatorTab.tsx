@@ -11,6 +11,7 @@ import { Breakdown } from './components/Breakdown';
 import { IssueList } from './components/IssueList';
 import { PriceMatrix } from './components/PriceMatrix';
 import { PriceTable } from './components/PriceTable';
+import { StepHeader } from './components/StepHeader';
 import { Summary } from './components/Summary';
 import { customerLabel, fieldId, issueMessage } from './format';
 import { type Action, type AppState, countOverrides } from './state';
@@ -86,10 +87,14 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     }
   }
 
+  const settingsBlocked = result?.ok === false && result.issues.some((i) => !i.path?.startsWith('input.'));
+
   return (
-    <Stack gap="md">
-      <Paper withBorder p="md" radius="md">
-        <Group align="flex-start" gap="md" wrap="wrap">
+    <Stack gap="xl">
+      <div>
+        <StepHeader step={1} title={t('steps.product')} subtitle={t('steps.productHint')} />
+        <Paper p="lg">
+          <Group align="flex-start" gap="md" wrap="wrap">
           <TextInput
             id={fieldId('input.name')}
             label={t('input.name')}
@@ -123,8 +128,9 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             error={fieldError('input.qty', qty, input.qty)}
             w={220}
           />
-        </Group>
-      </Paper>
+          </Group>
+        </Paper>
+      </div>
 
       {state.clearedOverrides > 0 && (
         <Alert color="blue" variant="light" withCloseButton onClose={() => dispatch({ type: 'dismissCleared' })}>
@@ -132,7 +138,18 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
         </Alert>
       )}
 
-      {result?.ok === false && result.issues.some((i) => !i.path?.startsWith('input.')) && (
+      {!list && !settingsBlocked && (
+        <Paper p="xl" shadow="none" className="empty-state" ta="center" data-testid="empty-state">
+          <Stack gap={6} align="center">
+            <Title order={4}>{t('empty.title')}</Title>
+            <Text c="dimmed" maw={460} size="sm">
+              {t('empty.text')}
+            </Text>
+          </Stack>
+        </Paper>
+      )}
+
+      {settingsBlocked && result?.ok === false && (
         <IssueList
           issues={result.issues.filter((i) => !i.path?.startsWith('input.'))}
           lang={lang}
@@ -143,6 +160,9 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
 
       {list && (
         <>
+          <div className="rise-in">
+          <StepHeader step={2} title={t('steps.result')} subtitle={t('steps.resultHint')} />
+          <Stack gap="sm">
           <Summary
             list={list}
             config={config}
@@ -151,11 +171,16 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             onEditBase={(value) => dispatch({ type: 'setBaseOverride', value })}
           />
           <IssueList issues={list.issues} lang={lang} onGoTo={onGoTo} />
-          <Paper withBorder p="md" radius="md">
-            <Stack gap="sm">
-              <Group justify="space-between">
-                <Title order={4}>{t('matrix.package')} × {t('columns.customer')}</Title>
-                <Group gap="sm">
+          </Stack>
+          </div>
+
+          <div className="rise-in">
+            <StepHeader
+              step={3}
+              title={t('steps.priceList')}
+              subtitle={t('steps.priceListHint')}
+              right={
+                <Group gap="sm" wrap="nowrap">
                   {state.showDetails && (
                     <Select
                       size="xs"
@@ -170,11 +195,14 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                       w={170}
                     />
                   )}
-                  <Button onClick={exportCsv} data-testid="export-csv">
+                  <Button onClick={exportCsv} data-testid="export-csv" radius="xl">
                     {t('export.csv')}
                   </Button>
                 </Group>
-              </Group>
+              }
+            />
+            <Paper p="lg">
+            <Stack gap="sm">
               {exportMessage && (
                 <Text size="sm" c={exportMessage.ok ? 'teal' : 'red'} data-testid="export-message">
                   {exportMessage.text}
@@ -190,7 +218,8 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                 onSelect={(r) => setSelectedKey(r.key)}
               />
             </Stack>
-          </Paper>
+            </Paper>
+          </div>
 
           <Switch
             label={t('details.show')}
@@ -200,10 +229,12 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
           />
 
           {state.showDetails && (
-            <Paper withBorder p="md" radius="md">
-              <Stack gap="sm">
-                <Group justify="space-between">
-                  <Title order={4}>{t('details.table')}</Title>
+            <div className="rise-in">
+            <StepHeader
+              step={4}
+              title={t('steps.details')}
+              subtitle={t('steps.detailsHint')}
+              right={
                   <Group gap="md">
                     <Checkbox
                       label={t('details.smartUpdates')}
@@ -218,7 +249,10 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                       </Button>
                     )}
                   </Group>
-                </Group>
+              }
+            />
+            <Paper p="lg">
+              <Stack gap="sm">
                 <PriceTable
                   rows={list.rows}
                   config={config}
@@ -228,6 +262,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                 />
               </Stack>
             </Paper>
+            </div>
           )}
 
           <Breakdown

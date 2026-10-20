@@ -24,6 +24,7 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
     <Stack gap="sm">
       <ScrollArea type="auto">
         <SegmentedControl
+          radius="xl"
           value={month}
           onChange={(v) => onMonth(v as MonthType)}
           data-testid="month-selector"
@@ -45,7 +46,7 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
           style={{ width: 'auto' }}
           data-testid="price-matrix"
         >
-          <Table.Thead>
+          <Table.Thead className="matrix-head">
             <Table.Tr>
               <Table.Th>{t('matrix.package')}</Table.Th>
               {config.customers.map((c) => (
@@ -69,6 +70,7 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                         w="100%"
                         px="sm"
                         py={4}
+                        className="price-cell"
                         onClick={() => onSelect(row)}
                         data-testid={`cell-${row.key}`}
                         data-status={row.status}

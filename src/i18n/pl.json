@@ -7,7 +7,8 @@
     },
     "language": "Język",
     "themeLight": "Jasny motyw",
-    "themeDark": "Ciemny motyw"
+    "themeDark": "Ciemny motyw",
+    "tagline": "Ustal ceny w kilka sekund"
   },
   "input": {
     "name": "Nazwa produktu",
@@ -28,7 +29,7 @@
     "unitCostHint": "zakup + obsługa",
     "floor": "Cena minimalna",
     "floorHint": "koszt + minimalny zysk (netto)",
-    "base": "Cena bazowa",
+    "base": "Cena maksymalna",
     "baseHint": "1 szt. · {{customer}} · szczyt",
     "retailProfit": "Zysk detaliczny",
     "retailProfitHint": "kosztu zakupu",
@@ -124,9 +125,9 @@
     "minProfit": "+ minimalny zysk ({{pct}} + {{fixed}})",
     "floor": "= cena minimalna",
     "deepMultiplier": "÷ najgłębszy rabat ({{qty}} szt. · {{customer}} · {{month}})",
-    "baseExact": "= dokładna cena bazowa",
-    "base": "= cena bazowa (w górę)",
-    "baseOverride": "= cena bazowa (edytowana ręcznie)",
+    "baseExact": "= dokładna cena maksymalna",
+    "base": "= cena maksymalna (w górę)",
+    "baseOverride": "= cena maksymalna (edytowana ręcznie)",
     "saleFactor": "× współczynnik wyprzedaży (od kosztu)",
     "saleCost": "= cena wyprzedażowa najgłębszej kombinacji",
     "saleDeepMultiplier": "÷ najgłębszy rabat pakiet × klient",
@@ -251,5 +252,19 @@
     "no": "Nie",
     "close": "Zamknij",
     "pcs": "szt."
+  },
+  "steps": {
+    "product": "Produkt",
+    "productHint": "Ile kosztuje i ile sztuk kupujesz",
+    "result": "Wynik",
+    "resultHint": "Koszt, cena minimalna i maksymalna",
+    "priceList": "Cennik",
+    "priceListHint": "Każdy pakiet, klient i miesiąc",
+    "details": "Szczegóły",
+    "detailsHint": "Wszystkie kombinacje, edycja i eksport"
+  },
+  "empty": {
+    "title": "Zacznij od produktu",
+    "text": "Wpisz koszt zakupu i liczbę sztuk — cennik dla wszystkich pakietów, klientów i miesięcy pojawi się od razu."
   }
 }

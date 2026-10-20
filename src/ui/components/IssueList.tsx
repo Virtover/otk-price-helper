@@ -7,7 +7,7 @@ import { issueMessage } from '../format';
 const LEVELS: { level: IssueLevel; color: string }[] = [
   { level: 'error', color: 'red' },
   { level: 'warning', color: 'yellow' },
-  { level: 'info', color: 'blue' },
+  { level: 'info', color: 'brand' },
 ];
 
 interface Props {

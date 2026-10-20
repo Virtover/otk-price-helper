@@ -190,10 +190,12 @@ export function SettingsTab({ state, dispatch }: Props) {
 
   return (
     <Stack gap="md">
-      <Paper withBorder p="md" radius="md">
+      <Paper p="md">
         <Group justify="space-between">
           <Group gap="xs">
-            <Title order={4}>{t('settings.file')}</Title>
+            <Title order={4} className="section-title">
+              {t('settings.file')}
+            </Title>
             {dirty && (
               <Badge color="orange" variant="light" data-testid="unsaved-badge">
                 {t('settings.unsaved')}
@@ -201,10 +203,10 @@ export function SettingsTab({ state, dispatch }: Props) {
             )}
           </Group>
           <Group gap="xs">
-            <Button variant="default" onClick={load} data-testid="config-load">
+            <Button variant="default" onClick={load} data-testid="config-load" radius="xl">
               {t('settings.load')}
             </Button>
-            <Button onClick={save} data-testid="config-save">
+            <Button onClick={save} data-testid="config-save" radius="xl">
               {t('settings.save')}
             </Button>
             <Button variant="subtle" color="gray" onClick={reset} data-testid="config-reset">
@@ -437,7 +439,17 @@ export function SettingsTab({ state, dispatch }: Props) {
         </Stack>
       </Section>
 
-      <Accordion variant="contained" radius="md">
+      <Accordion
+        variant="separated"
+        radius="lg"
+        styles={{
+          item: {
+            background: 'var(--mantine-color-body)',
+            border: '1px solid var(--mantine-color-default-border)',
+            boxShadow: 'var(--mantine-shadow-xs)',
+          },
+        }}
+      >
         <Accordion.Item value="calendar">
           <Accordion.Control>{t('settings.calendar')}</Accordion.Control>
           <Accordion.Panel>
@@ -467,10 +479,12 @@ export function SettingsTab({ state, dispatch }: Props) {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <Paper withBorder p="md" radius="md">
+    <Paper p="lg">
       <Stack gap="md">
         <div>
-          <Title order={4}>{title}</Title>
+          <Title order={4} className="section-title">
+            {title}
+          </Title>
           {hint && (
             <Text size="sm" c="dimmed">
               {hint}

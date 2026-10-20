@@ -2,8 +2,10 @@ import {
   ActionIcon,
   Container,
   Group,
+  Image,
   SegmentedControl,
   Tabs,
+  Text,
   Title,
   Tooltip,
   useComputedColorScheme,
@@ -66,48 +68,73 @@ export function App() {
   };
 
   return (
-    <Container size="xl" py="md">
-      <Group justify="space-between" mb="md">
-        <Title order={2}>{t('app.title')}</Title>
-        <Group gap="xs">
-          <Tooltip label={themeLabel}>
-            <ActionIcon
-              variant="default"
-              size="lg"
-              aria-label={themeLabel}
-              data-testid="theme-toggle"
-              onClick={() => setColorScheme(scheme === 'dark' ? 'light' : 'dark')}
-            >
-              {scheme === 'dark' ? '☀' : '☾'}
-            </ActionIcon>
-          </Tooltip>
-          <SegmentedControl
-            aria-label={t('app.language')}
-            value={state.lang}
-            onChange={(v) => dispatch({ type: 'setLang', lang: v === 'en' ? 'en' : 'pl' })}
-            data={[
-              { value: 'pl', label: 'PL' },
-              { value: 'en', label: 'EN' },
-            ]}
-            data-testid="lang-switch"
-          />
-        </Group>
-      </Group>
-      <Tabs value={tab} onChange={(v) => setTab(v === 'settings' ? 'settings' : 'calculator')} keepMounted={false}>
-        <Tabs.List mb="md">
-          <Tabs.Tab value="calculator">{t('app.tabs.calculator')}</Tabs.Tab>
-          <Tabs.Tab value="settings">
-            {t('app.tabs.settings')}
-            {dirty ? ' •' : ''}
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="calculator">
-          <CalculatorTab state={state} dispatch={dispatch} onGoTo={goTo} />
-        </Tabs.Panel>
-        <Tabs.Panel value="settings">
-          <SettingsTab state={state} dispatch={dispatch} />
-        </Tabs.Panel>
-      </Tabs>
-    </Container>
+    <>
+      <header className="app-header">
+        <Container size="lg" py="sm">
+          <Group justify="space-between" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap">
+              <Image src="/favicon.svg" alt="" w={40} h={40} radius="md" />
+              <div>
+                <Title order={3} className="brand-title" lh={1.1}>
+                  {t('app.title')}
+                </Title>
+                <Text size="xs" c="dimmed">
+                  {t('app.tagline')}
+                </Text>
+              </div>
+            </Group>
+            <Group gap="xs" wrap="nowrap">
+              <Tooltip label={themeLabel}>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  radius="xl"
+                  aria-label={themeLabel}
+                  data-testid="theme-toggle"
+                  onClick={() => setColorScheme(scheme === 'dark' ? 'light' : 'dark')}
+                >
+                  {scheme === 'dark' ? '☀' : '☾'}
+                </ActionIcon>
+              </Tooltip>
+              <SegmentedControl
+                radius="xl"
+                size="xs"
+                aria-label={t('app.language')}
+                value={state.lang}
+                onChange={(v) => dispatch({ type: 'setLang', lang: v === 'en' ? 'en' : 'pl' })}
+                data={[
+                  { value: 'pl', label: 'PL' },
+                  { value: 'en', label: 'EN' },
+                ]}
+                data-testid="lang-switch"
+              />
+            </Group>
+          </Group>
+        </Container>
+      </header>
+      <Container size="lg" py="md">
+        <Tabs
+          variant="pills"
+          radius="xl"
+          value={tab}
+          onChange={(v) => setTab(v === 'settings' ? 'settings' : 'calculator')}
+          keepMounted={false}
+        >
+          <Tabs.List mb="lg">
+            <Tabs.Tab value="calculator">{t('app.tabs.calculator')}</Tabs.Tab>
+            <Tabs.Tab value="settings">
+              {t('app.tabs.settings')}
+              {dirty ? ' •' : ''}
+            </Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="calculator">
+            <CalculatorTab state={state} dispatch={dispatch} onGoTo={goTo} />
+          </Tabs.Panel>
+          <Tabs.Panel value="settings">
+            <SettingsTab state={state} dispatch={dispatch} />
+          </Tabs.Panel>
+        </Tabs>
+      </Container>
+    </>
   );
 }

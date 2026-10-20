@@ -14,10 +14,18 @@ interface Props {
   onEditBase: (value?: bigint) => void;
 }
 
-function Stat({ label, hint, children, testId }: { label: string; hint: string; children: ReactNode; testId: string }) {
+interface StatProps {
+  label: string;
+  hint: string;
+  children: ReactNode;
+  testId: string;
+  highlight?: boolean;
+}
+
+function Stat({ label, hint, children, testId, highlight }: StatProps) {
   return (
-    <Paper withBorder p="sm" radius="md" data-testid={testId}>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+    <Paper p="md" data-testid={testId} className={highlight ? 'card-highlight num' : 'num'}>
+      <Text size="xs" c={highlight ? 'brand' : 'dimmed'} tt="uppercase" fw={700} style={{ letterSpacing: 0.5 }}>
         {label}
       </Text>
       {children}
@@ -46,6 +54,7 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
         label={t('summary.base')}
         hint={t('summary.baseHint', { customer: config.customers[0]?.label[lang] ?? '' })}
         testId="stat-base"
+        highlight
       >
         <Stack gap={0}>
           <Group gap={6} align="baseline">

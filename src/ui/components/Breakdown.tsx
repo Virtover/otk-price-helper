@@ -23,7 +23,17 @@ export function Breakdown({ list, row, config, lang, onClose, onEdit }: Props) {
   const calculated = steps.find((s) => s.key === 'netOverride')?.params?.calculated;
 
   return (
-    <Drawer opened={row !== undefined} onClose={onClose} position="right" size="lg" title={t('breakdown.title')}>
+    <Drawer
+      opened={row !== undefined}
+      onClose={onClose}
+      position="right"
+      size="lg"
+      title={
+        <Text fw={700} size="lg">
+          {t('breakdown.title')}
+        </Text>
+      }
+    >
       {row && (
         <Stack gap="sm" data-testid="breakdown">
           <Group justify="space-between">
