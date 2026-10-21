@@ -29,7 +29,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | koszt jednostkowy | unit cost | `K` | `c·(1+h) + ⌈H/N⌉` |
 | minimalny zysk | minimum profit | `p%`, `P` | per unit, relative to `c` |
 | próg | floor | `F` | `K + c·p% + P` — lowest allowed net unit price |
-| cena maksymalna (UI; spec: cena bazowa) | maximum price (UI; spec: base price) | `B` | net price: 1 unit, retail customer, peak month — the undiscounted list price |
+| cena bazowa | base price | `B` | net price: 1 unit, retail customer, peak month — the undiscounted list price |
 | mnożnik | multiplier | `m` | `1 − discount%` |
 | pakiet | package tier | — | quantity threshold with a discount |
 | rodzaj klienta | customer type | — | retail / wholesale 1–4 |
@@ -102,7 +102,7 @@ free order, several types may share a discount, e.g. summer and winter peak)
 | Przedszczyt 3 / Pre-peak 3 | 30 % |
 | WYPRZEDAŻ (sale) | built in, not removable — see 4.3 |
 
-The **first** month type is the reference for the maximum price card and the retail profit
+The **first** month type is the reference for the base price card and the retail profit
 (1 unit · first customer type · first month type). Removing a month type moves calendar months
 that used it to the first remaining type.
 
