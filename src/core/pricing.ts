@@ -70,55 +70,145 @@ export function baseForTarget(target: bigint, multiplier: Rat): bigint {
  * other rows sharing that base follow according to their discounts. Sale rows
  * shift the sale base; regular rows shift B. The row's own manual edit is dropped.
  *
- * With the flexible price list on (pass the current list), a base too low for the full
- * discounts makes the prices spread; the new top is then chosen so the spread puts this
- * row exactly on the target. Where no top can do that (the deepest row, or a top above the
- * price limit), the edit falls back to this row only.
+ * With the flexible price list on (pass the current list) the edit stays inside the row's
+ * flexible range and lands exactly on the target: below what the price limit allows with full
+ * discounts it moves the top price; above it, it keeps the top at the limit and raises the bottom
+ * of the spread (discounts shrink further). Unreachable targets fall back to this row only.
  */
 export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrides, list?: PriceList): Overrides {
   const { [row.key]: _dropped, ...rows } = overrides.rows;
   const isSale = row.month === SALE;
-  const individually = { ...overrides, rows: { ...rows, [row.key]: target } };
-  if (isSale && list?.flex.requested) return shiftLinkedSale(row, target, overrides, rows, list) ?? individually;
-  let base = baseForTarget(target, row.multiplier);
-  if (list?.flex.requested) {
-    const needed = isSale ? list.sale.baseCalculated : list.baseCalculated;
-    if (base < needed) {
-      const low = isSale ? list.sale.cost : list.floor;
-      const pos = flexPosition(isSale ? list.sale.deepMultiplier : list.deepest.multiplier, row.multiplier);
-      if (pos.n === 0n) return individually;
-      // Smallest top T with ⌈low + (T − low) · pos⌉ = target (pos ≤ 1, so every target is reachable).
-      base = floorOf(add(low, div(sub(rat(target - 1n), low), pos))) + 1n;
-      const max = list.input.maxPriceGr;
-      if (max !== undefined && base > max) return individually;
-    }
+  if (!list?.flex.requested) {
+    const base = baseForTarget(target, row.multiplier);
+    return isSale ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
   }
-  return isSale ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
+  const shifted = isSale ? shiftFlexSale(row, target, overrides, rows, list) : shiftFlexRegular(row, target, overrides, rows, list);
+  return shifted ?? { ...overrides, rows: { ...rows, [row.key]: target } };
 }
 
-/**
- * Flexible mode, sale row: find the sale top that puts the row on the target (nominal or spread),
- * then the regular base whose linked sale top is exactly that. Undefined = not reachable.
- */
-function shiftLinkedSale(
+/** Top price that puts a row on the target, with the spread bottom at `low`; undefined for the deepest row. */
+function topForTarget(target: bigint, m: Rat, low: Rat, needed: bigint, mDeep: Rat): bigint | undefined {
+  const nominal = baseForTarget(target, m);
+  if (nominal >= needed) return nominal;
+  const pos = flexPosition(mDeep, m);
+  if (pos.n === 0n) return undefined;
+  // Smallest top T with ⌈low + (T − low) · pos⌉ = target (pos ≤ 1, so every target is reachable).
+  const top = floorOf(add(low, div(sub(rat(target - 1n), low), pos))) + 1n;
+  const lowest = ceil(low);
+  return top < lowest ? lowest : top;
+}
+
+/** Spread bottom L (top fixed) that puts a row on the target: smallest L with ⌈L + (top − L) · pos⌉ = target. */
+function lowForTarget(target: bigint, top: bigint, mDeep: Rat, m: Rat): bigint {
+  const pos = flexPosition(mDeep, m);
+  if (eq(pos, ONE)) return top;
+  return floorOf(div(sub(rat(target - 1n), mul(rat(top), pos)), sub(ONE, pos))) + 1n;
+}
+
+function shiftFlexRegular(
+  row: PriceRow,
+  target: bigint,
+  overrides: Overrides,
+  rows: Record<string, bigint>,
+  list: PriceList,
+): Overrides {
+  const { flexLow: _low, ...rest } = overrides;
+  const limit = list.input.maxPriceGr;
+  if (limit === undefined || target <= priceAtTop(list, row, limit)) {
+    const top = topForTarget(target, row.multiplier, list.floor, list.baseCalculated, list.deepest.multiplier);
+    return { ...rest, rows, base: top ?? ceil(list.floor) };
+  }
+  // Above what the limit allows with full discounts: top stays at the limit, the bottom rises.
+  return { ...rest, rows, base: limit, flexLow: lowForTarget(target, limit, list.deepest.multiplier, row.multiplier) };
+}
+
+function shiftFlexSale(
   row: PriceRow,
   target: bigint,
   overrides: Overrides,
   rows: Record<string, bigint>,
   list: PriceList,
 ): Overrides | undefined {
-  let saleTop = baseForTarget(target, row.multiplier);
-  if (saleTop < list.sale.baseCalculated) {
-    const pos = flexPosition(list.sale.deepMultiplier, row.multiplier);
-    if (pos.n === 0n) return undefined;
-    saleTop = floorOf(add(list.sale.cost, div(sub(rat(target - 1n), list.sale.cost), pos))) + 1n;
+  const { flexSaleLow: _low, saleBase: _ignored, ...rest } = overrides;
+  const limit = list.input.maxPriceGr;
+  if (limit === undefined || target <= priceAtTop(list, row, limit)) {
+    let saleTop =
+      topForTarget(target, row.multiplier, list.sale.cost, list.sale.baseCalculated, list.sale.deepMultiplier) ??
+      ceil(list.sale.cost);
+    const saleFloor = ceil(list.sale.cost);
+    if (saleTop < saleFloor) saleTop = saleFloor;
+    if (gt(list.flex.saleRatio, ONE)) return undefined;
+    // Regular base whose linked sale top is exactly saleTop.
+    const base = baseForTarget(saleTop, list.flex.saleRatio);
+    if (limit !== undefined && base > limit) return undefined;
+    return { ...rest, rows, base };
   }
-  if (gt(list.flex.saleRatio, ONE)) return undefined;
-  const base = baseForTarget(saleTop, list.flex.saleRatio);
+  const saleTop = linkedSaleTop(list, limit);
+  return { ...rest, rows, base: limit, flexSaleLow: lowForTarget(target, saleTop, list.sale.deepMultiplier, row.multiplier) };
+}
+
+/** Sale top linked to a regular top: same ratio as without flexibility, within [sale minimum, limit]. */
+function linkedSaleTop(list: PriceList, top: bigint): bigint {
   const max = list.input.maxPriceGr;
-  if (max !== undefined && base > max) return undefined;
-  const { saleBase: _ignored, ...rest } = overrides;
-  return { ...rest, rows, base };
+  let saleTop = ceil(mul(rat(top), list.flex.saleRatio));
+  if (max !== undefined && saleTop > max) saleTop = max;
+  const saleFloor = ceil(list.sale.cost);
+  return saleTop < saleFloor ? saleFloor : saleTop;
+}
+
+/**
+ * Flexible mode: the price this row gets when the regular top price is `top` and the spread
+ * bottom is the minimum (same rules as the engine; sale rows linked).
+ */
+export function priceAtTop(list: PriceList, row: PriceRow, top: bigint): bigint {
+  if (row.month !== SALE) {
+    return top >= list.baseCalculated
+      ? ceil(mul(rat(top), row.multiplier))
+      : ceil(spreadPrice(list.floor, top, list.deepest.multiplier, row.multiplier));
+  }
+  const saleTop = linkedSaleTop(list, top);
+  return saleTop >= list.sale.baseCalculated
+    ? ceil(mul(rat(saleTop), row.multiplier))
+    : ceil(spreadPrice(list.sale.cost, saleTop, list.sale.deepMultiplier, row.multiplier));
+}
+
+export interface FlexRange {
+  /** Lowest price this row can have: the minimum price (sale: the sale minimum). */
+  min: bigint;
+  /** Highest price this row can have: the price limit (sale: the highest sale price it allows); none without a limit. */
+  max?: bigint;
+}
+
+/** Allowed price range of a row in flexible mode, or undefined when flexible mode is off. */
+export function flexRange(list: PriceList, row: PriceRow): FlexRange | undefined {
+  if (!list.flex.requested) return undefined;
+  const isSale = row.month === SALE;
+  const min = isSale ? ceil(list.sale.cost) : ceil(list.floor);
+  const limit = list.input.maxPriceGr;
+  if (limit === undefined) return { min };
+  const max = isSale ? linkedSaleTop(list, limit < min ? min : limit) : limit;
+  return { min, max: max < min ? min : max };
+}
+
+export type ClampReason = 'min' | 'max';
+
+/** Clamps a requested price into the row's flexible range. */
+export function clampToFlex(
+  list: PriceList,
+  row: PriceRow,
+  value: bigint,
+): { value: bigint; reason?: ClampReason; range?: FlexRange } {
+  const range = flexRange(list, row);
+  if (!range) return { value };
+  if (value < range.min) return { value: range.min, reason: 'min', range };
+  if (range.max !== undefined && value > range.max) return { value: range.max, reason: 'max', range };
+  return { value, range };
+}
+
+/** Unit price for a requested package total: the nearest amount divisible by the quantity. */
+export function unitForPackageTotal(totalGr: bigint, qty: bigint): bigint {
+  const unit = roundHalf(rat(totalGr, qty));
+  return unit < 1n ? 1n : unit;
 }
 
 export interface CalculateOptions {
@@ -203,16 +293,17 @@ export function calculate(
   if (baseCalculated > MAX_PRICE_GR) {
     return { ok: false, issues: [...issues, { level: 'error', code: 'outOfRange', path: 'input.costGr' }] };
   }
-  const baseOverridden = overrides.base !== undefined;
-  const base = overrides.base ?? baseCalculated;
+  // A base of 0 or less is meaningless (and would divide by zero): ignore it.
+  const baseOverridden = overrides.base !== undefined && overrides.base > 0n;
+  const base = baseOverridden ? overrides.base! : baseCalculated;
 
   // 5. Sale: deepest package × customer combination priced at s·K (after fees).
   const saleCost = div(mul(unitCost, fromBp(config.sale.factorBp)), keep);
   const saleDeepMultiplier = mul(multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp));
   const saleBaseExact = div(saleCost, saleDeepMultiplier);
   const saleBaseCalculated = ceil(saleBaseExact);
-  const saleBaseOverridden = overrides.saleBase !== undefined;
-  const saleBase = overrides.saleBase ?? saleBaseCalculated;
+  const saleBaseOverridden = overrides.saleBase !== undefined && overrides.saleBase > 0n;
+  const saleBase = saleBaseOverridden ? overrides.saleBase! : saleBaseCalculated;
 
   // 6. Flexible mode. The top price is the lower of the price limit and the base actually used
   //    (a manually lowered base counts too). When it is below the base the full discounts need,
@@ -221,7 +312,11 @@ export function calculate(
   const baseUsed = smart ? base : baseCalculated;
   const saleUsed = smart ? saleBase : saleBaseCalculated;
   const topOf = (used: bigint) => (max !== undefined && max < used ? max : used);
-  const regularTop = topOf(baseUsed);
+  // Flexible mode keeps prices between the minimum and the top: a top below the minimum
+  // (lowered base or limit) is raised to the minimum, so every regular price sits at the minimum.
+  const floorGr = ceil(floor);
+  const requestedTop = topOf(baseUsed);
+  const regularTop = flexible && requestedTop < floorGr ? floorGr : requestedTop;
   // In flexible mode sale prices are linked to regular ones: the sale top keeps the same ratio to
   // the regular top as without flexibility (B_sale / B), so a change of one moves the other.
   const saleRatio = div(rat(saleBaseCalculated), rat(baseCalculated));
@@ -229,9 +324,18 @@ export function calculate(
   const linkedSaleTop = topOf(ceil(mul(rat(regularTop), saleRatio)));
   const saleFloor = ceil(saleCost);
   const saleTop = flexible ? (linkedSaleTop < saleFloor ? saleFloor : linkedSaleTop) : topOf(saleUsed);
+  // Bottom of the spread: the minimum, unless an edit pushed a discounted row up towards the limit.
+  const raise = (low: Rat, override: bigint | undefined, top: bigint): Rat => {
+    if (!flexible || override === undefined || !gt(rat(override), low)) return low;
+    return gt(rat(override), rat(top)) ? rat(top) : rat(override);
+  };
+  const regularLow = raise(floor, overrides.flexLow, regularTop);
+  const saleLow = raise(saleCost, overrides.flexSaleLow, saleTop);
+  const regularNeeded = ceil(div(regularLow, deepMultiplier));
+  const saleNeeded = ceil(div(saleLow, saleDeepMultiplier));
   const canSpread = (top: bigint, needed: bigint, low: Rat) => top < needed && !lt(rat(top), low);
-  const flexActive = flexible && canSpread(regularTop, baseCalculated, floor);
-  const saleFlexActive = flexible && canSpread(saleTop, saleBaseCalculated, saleCost);
+  const flexActive = flexible && canSpread(regularTop, regularNeeded, regularLow);
+  const saleFlexActive = flexible && canSpread(saleTop, saleNeeded, saleLow);
 
   // 7. Rows.
   const rows: PriceRow[] = [];
@@ -249,7 +353,7 @@ export function calculate(
         const saleRef = flexible ? saleTop : saleUsed;
         const refBase = flexed ? (isSale ? saleTop : regularTop) : isSale ? saleRef : baseUsed;
         const exactNet = flexed
-          ? spreadPrice(isSale ? saleCost : floor, refBase, isSale ? saleDeepMultiplier : deepMultiplier, multiplier)
+          ? spreadPrice(isSale ? saleLow : regularLow, refBase, isSale ? saleDeepMultiplier : deepMultiplier, multiplier)
           : mul(rat(refBase), multiplier);
         const calculatedNet = ceil(exactNet);
         const overrideNet = overrides.rows[key];
@@ -348,6 +452,13 @@ export function calculate(
       issues.push({ level: 'warning', code: 'rowsAboveMax', params: { count: above, max }, path: 'input.maxPriceGr' });
     }
   }
+  // The requested top (lowered base or limit) is at or below the minimum: everything regular sits there.
+  if (flexible && requestedTop <= floorGr && floorGr < baseCalculated) {
+    issues.push({ level: 'info', code: 'flexAtMinimum', params: { floor: { money: floorGr } } });
+  }
+  if (flexActive && gt(regularLow, floor)) {
+    issues.push({ level: 'info', code: 'flexLowRaised', params: { low: { moneyRat: regularLow }, max: { money: regularTop } } });
+  }
   if (flexActive) {
     issues.push({
       level: 'info',
@@ -387,7 +498,18 @@ export function calculate(
       baseOverridden: saleBaseOverridden,
     },
     fees: { rate: feeRate, keep },
-    flex: { requested: flexible, active: flexActive, saleActive: saleFlexActive, top: regularTop, saleTop, saleRatio },
+    flex: {
+      requested: flexible,
+      active: flexActive,
+      saleActive: saleFlexActive,
+      top: regularTop,
+      saleTop,
+      saleRatio,
+      low: regularLow,
+      saleLow,
+      lowRaised: flexible && overrides.flexLow !== undefined,
+      saleLowRaised: flexible && overrides.flexSaleLow !== undefined,
+    },
     topPrice: flexActive ? regularTop : baseUsed,
     topPriceGross: roundHalf(mul(rat(flexActive ? regularTop : baseUsed), vat)),
     retailProfitPct: retail.profitPct,

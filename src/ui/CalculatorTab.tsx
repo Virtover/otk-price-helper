@@ -3,8 +3,9 @@ import { type Dispatch, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { exportFileName } from '../core/filename';
 import { parseInteger, parseMoney } from '../core/money';
-import { calculate, monthIds, shiftOverrides } from '../core/pricing';
-import type { MonthType, ProductInput } from '../core/types';
+import { calculate, clampToFlex, monthIds, shiftOverrides } from '../core/pricing';
+import { ceil } from '../core/rational';
+import type { MonthType, PriceRow, ProductInput } from '../core/types';
 import { confirmDialog, saveBinaryFile } from '../lib/fileio';
 import { Breakdown } from './components/Breakdown';
 import { IssueList } from './components/IssueList';
@@ -12,7 +13,7 @@ import { PriceMatrix } from './components/PriceMatrix';
 import { PriceTable } from './components/PriceTable';
 import { StepHeader } from './components/StepHeader';
 import { Summary } from './components/Summary';
-import { fieldId, issueMessage } from './format';
+import { fieldId, issueMessage, money } from './format';
 import { type Action, type AppState, countOverrides } from './state';
 
 interface Props {
@@ -64,19 +65,49 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
   const setInput = (field: keyof AppState['input']) => (e: React.ChangeEvent<HTMLInputElement>) =>
     dispatch({ type: 'setInput', field, value: e.currentTarget.value });
 
+  /** Flexible mode keeps every price between its minimum and what the price limit allows. */
+  const constrainRow = (row: PriceRow, value: bigint) => {
+    if (!list) return { value };
+    const c = clampToFlex(list, row, value);
+    if (!c.reason) return { value: c.value };
+    const params = { value: money(c.value, lang), min: money(c.range!.min, lang) };
+    if (c.reason === 'max') {
+      const key = row.month === 'sale' ? 'edit.clampedMaxSale' : 'edit.clampedMax';
+      return { value: c.value, note: t(key, { ...params, max: money(list.input.maxPriceGr!, lang) }) };
+    }
+    return { value: c.value, note: t(row.month === 'sale' ? 'edit.clampedMinSale' : 'edit.clampedMin', params) };
+  };
+  const constrain = list?.flex.requested ? constrainRow : undefined;
+  const constrainBase =
+    list?.flex.requested
+      ? (value: bigint) => {
+          const min = ceil(list.floor);
+          const max = list.input.maxPriceGr;
+          if (value < min) return { value: min, note: t('edit.clampedTopMin', { value: money(min, lang) }) };
+          if (max !== undefined && max >= min && value > max) {
+            return { value: max, note: t('edit.clampedTopMax', { value: money(max, lang) }) };
+          }
+          return { value };
+        }
+      : undefined;
+
   /** Individually: only this row changes. Otherwise the row's base shifts and all rows sharing it follow. */
-  const editRow = (key: string, value?: bigint) => {
+  const editRow = (key: string, requested?: bigint) => {
     const row = list?.rows.find((r) => r.key === key);
+    const value = requested !== undefined && row && constrain ? constrain(row, requested).value : requested;
     if (value === undefined || state.editIndividually || !row) {
       dispatch({ type: 'setRowOverride', key, value });
     } else {
       dispatch({ type: 'setOverrides', overrides: shiftOverrides(row, value, state.overrides, list) });
     }
   };
+  // In flexible mode sale and regular prices are linked: a reset clears every shift.
   const resetShift = (sale: boolean) =>
-    sale
-      ? dispatch({ type: 'setOverrides', overrides: { ...state.overrides, saleBase: undefined } })
-      : dispatch({ type: 'setBaseOverride' });
+    list?.flex.requested
+      ? dispatch({ type: 'setOverrides', overrides: { rows: state.overrides.rows } })
+      : sale
+        ? dispatch({ type: 'setOverrides', overrides: { ...state.overrides, saleBase: undefined } })
+        : dispatch({ type: 'setBaseOverride' });
   const maxPriceError =
     input.maxPrice.trim() === ''
       ? undefined
@@ -216,6 +247,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             lang={lang}
             editable={state.showDetails}
             onEditBase={(value) => dispatch({ type: 'setBaseOverride', value })}
+            constrainBase={constrainBase}
           />
           <IssueList issues={list.issues} lang={lang} onGoTo={onGoTo} />
           </Stack>
@@ -305,6 +337,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                   lang={lang}
                   onSelect={(r) => setSelectedKey(r.key)}
                   onEdit={editRow}
+                  constrain={constrain}
                 />
               </Stack>
             </Paper>
@@ -319,6 +352,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             onClose={() => setSelectedKey(undefined)}
             onEdit={editRow}
             individually={state.editIndividually}
+            constrain={constrain}
             onIndividually={(value) => dispatch({ type: 'setEditIndividually', value })}
             onResetShift={resetShift}
           />

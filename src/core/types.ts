@@ -80,6 +80,10 @@ export interface Overrides {
   base?: bigint;
   /** Manually set sale base (net, grosze). */
   saleBase?: bigint;
+  /** Flexible mode: raised bottom of the regular spread (deepest price), grosze. */
+  flexLow?: bigint;
+  /** Flexible mode: raised bottom of the sale spread, grosze. */
+  flexSaleLow?: bigint;
   /** Manually set net unit price per row key. */
   rows: Record<string, bigint>;
 }
@@ -162,7 +166,19 @@ export interface PriceList {
    */
   /** top / saleTop: the lower of the price limit and the base (sale base) actually used. */
   /** saleRatio: B_sale / B without flexibility; in flexible mode saleTop = ⌈top · saleRatio⌉ (linked). */
-  flex: { requested: boolean; active: boolean; saleActive: boolean; top: bigint; saleTop: bigint; saleRatio: Rat };
+  flex: {
+    requested: boolean;
+    active: boolean;
+    saleActive: boolean;
+    top: bigint;
+    saleTop: bigint;
+    saleRatio: Rat;
+    /** Bottom of the spread: the minimum price, or higher after an edit towards the limit. */
+    low: Rat;
+    saleLow: Rat;
+    lowRaised: boolean;
+    saleLowRaised: boolean;
+  };
   /** Highest regular price actually used: the flexible top when flex is active, else the base price. */
   topPrice: bigint;
   topPriceGross: bigint;

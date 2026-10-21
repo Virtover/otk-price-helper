@@ -7,6 +7,7 @@ import { monthIds } from '../../core/pricing';
 import type { Config, PriceRow } from '../../core/types';
 import { customerLabel, monthLabel, moneyRat, pct } from '../format';
 import { EditablePrice } from './EditablePrice';
+import type { Constrain } from './PriceEditor';
 import { STATUS_COLOR, statusBg } from './status';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
   lang: Locale;
   onSelect: (row: PriceRow) => void;
   onEdit: (key: string, value?: bigint) => void;
+  constrain?: Constrain;
 }
 
 const COLUMNS = [
@@ -65,7 +67,7 @@ const numeric = (r: PriceRow, col: Column): Rat | undefined => {
 };
 
 /** Flat, filterable and sortable list of every combination — same rows as the XLSX export. */
-export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
+export function PriceTable({ rows, config, lang, onSelect, onEdit, constrain }: Props) {
   const { t } = useTranslation();
   const [month, setMonth] = useState<string | null>(null);
   const [customer, setCustomer] = useState<string | null>(null);
@@ -145,6 +147,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
                       lang={lang}
                       testId={`edit-${r.key}`}
                       onCommit={(v) => onEdit(r.key, v)}
+                      constrain={constrain && ((v) => constrain(r, v))}
                     />
                   </Group>
                 </Table.Td>

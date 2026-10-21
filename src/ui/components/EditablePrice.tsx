@@ -1,4 +1,4 @@
-import { ActionIcon, Group, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Group, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoney, formatMoneyInput, parseMoney } from '../../core/money';
@@ -11,22 +11,28 @@ interface Props {
   onCommit: (value?: bigint) => void;
   testId: string;
   fw?: number;
+  /** Adjusts the entered value to the allowed range; `note` explains a change. */
+  constrain?: (value: bigint) => { value: bigint; note?: string };
 }
 
 /** A price that turns into an input on click. Enter/blur applies, Escape cancels. */
-export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 600 }: Props) {
+export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 600, constrain }: Props) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState<string>();
+  const [note, setNote] = useState<string>();
 
   const commit = () => {
     const r = parseMoney(text);
     if (!r.ok) return setError(t(`parse.${r.error}`));
     if (r.value <= 0n) return setError(t('issues.costNonPositive'));
+    const c = constrain?.(r.value);
+    const next = c?.value ?? r.value;
+    setNote(c && c.value !== r.value ? c.note : undefined);
     setEditing(false);
     setError(undefined);
-    if (r.value !== value) onCommit(r.value);
+    if (next !== value) onCommit(next);
   };
 
   if (editing) {
@@ -55,10 +61,12 @@ export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 
   const startEditing = (e: React.MouseEvent) => {
     e.stopPropagation();
     setText(formatMoneyInput(value, lang));
+    setNote(undefined);
     setEditing(true);
   };
 
   return (
+    <Stack gap={0} align="flex-end">
     <Group gap={2} wrap="nowrap">
       <UnstyledButton
         data-testid={testId}
@@ -90,5 +98,11 @@ export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 
         </Tooltip>
       )}
     </Group>
+      {note && (
+        <Text size="xs" c="orange.8" maw={260} ta="right" data-testid={`${testId}-note`}>
+          {note}
+        </Text>
+      )}
+    </Stack>
   );
 }

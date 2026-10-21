@@ -117,7 +117,18 @@
     "shiftSaleHint": "The change shifts all sale prices according to the discounts.",
     "individualHint": "Changes only this one combination. Gross and package totals are recalculated.",
     "resetShift": "Reset to calculated prices",
-    "shiftLinkedHint": "Flexible price list: the change shifts all prices — sale and regular — according to the discounts."
+    "shiftLinkedHint": "Flexible price list: the change shifts all prices — sale and regular. When the full discounts do not fit between the minimum and the highest price, the discounts are reduced proportionally.",
+    "perUnit": "Per unit",
+    "perPackage": "Per package ({{qty}} pcs)",
+    "netPackage": "Net package price",
+    "snappedPackage": "Rounded to {{total}} — a package price must be divisible by {{qty}} pcs ({{unit}} per unit).",
+    "clampedMin": "Raised to {{value}} per unit — the flexible price list never goes below the minimum price ({{min}}).",
+    "clampedMinSale": "Raised to {{value}} per unit — sale prices never go below the sale minimum ({{min}} = unit cost × sale factor).",
+    "clampedMax": "Lowered to {{value}} per unit — the flexible price list never exceeds the maximum price ({{max}}).",
+    "clampedTopMin": "Raised to {{value}} — the flexible price list never goes below the minimum price.",
+    "clampedTopMax": "Lowered to {{value}} — the base price cannot exceed the maximum price.",
+    "packageTotal": "Package of {{qty}} pcs: {{total}}.",
+    "clampedMaxSale": "Lowered to {{value}} per unit — with the maximum price {{max}} sale prices do not exceed {{value}}."
   },
   "breakdown": {
     "title": "Why this price?",
@@ -134,7 +145,7 @@
     "base": "= base price (rounded up)",
     "baseOverride": "= base price (edited manually)",
     "saleFactor": "× sale factor (of unit cost)",
-    "saleCost": "= sale price of the deepest combination",
+    "saleCost": "= sale minimum (deepest combination)",
     "saleDeepMultiplier": "÷ deepest package × customer discount",
     "saleBaseExact": "= exact sale base",
     "saleBase": "= sale base (rounded up)",
@@ -151,14 +162,15 @@
     "grossNotDivisible": "Gross unit × quantity would be this — {{diff}} different, because VAT is calculated on the net total as on an invoice",
     "profitUnit": "Profit per unit ({{pct}} of purchase cost)",
     "belowFloor": "Below the minimum price {{threshold}} by this amount per unit",
-    "belowSale": "Below the sale price {{threshold}} by this amount per unit",
+    "belowSale": "Below the sale minimum {{threshold}} by this amount per unit",
     "saleBaseOverride": "= sale base (shifted manually)",
     "aboveMax": "Above the maximum price {{max}} by this amount per unit",
     "feeDivisor": "÷ (1 − fee {{fee}} × (1 + VAT {{vat}}))",
     "flexTop": "Flexible price list: highest price (no discount)",
     "flexPosition": "Position between minimum price (0 %) and maximum price (100 %)",
     "feeUnit": "− fee from the selling price ({{fee}} of gross)",
-    "flexSaleLinked": "Flexible price list: highest sale price = {{ratio}} of the highest price {{top}}"
+    "flexSaleLinked": "Flexible price list: highest sale price = {{ratio}} of the highest price {{top}}",
+    "flexLow": "Flexible price list: lowest price (raised by an edit)"
   },
   "issues": {
     "title": "Messages",
@@ -201,7 +213,9 @@
     "calendarUnknown": "The calendar refers to a month type that does not exist.",
     "feeTooHigh": "Fees including VAT cannot take 100 % of the price.",
     "flexActive": "Flexible price list: the full discounts would need a base price of {{base}}, but the highest price is {{max}} — prices were spread between the minimum price and {{max}}.",
-    "flexSaleActive": "Flexible price list: sale prices were spread between cost and {{max}}."
+    "flexSaleActive": "Flexible price list: sale prices were spread between the sale minimum and {{max}}.",
+    "flexAtMinimum": "The flexible price list never goes below the minimum price — the highest price was raised to {{floor}}, so all regular prices equal the minimum.",
+    "flexLowRaised": "Flexible price list: the lowest price was raised to {{low}} (highest {{max}}) — discounts were reduced so the edited price fits."
   },
   "settings": {
     "costs": "Costs and profit",
@@ -235,7 +249,7 @@
     "moveDown": "Move down",
     "months": "Month types",
     "sale": "Sale (WYPRZEDAŻ)",
-    "saleFactor": "Sale price",
+    "saleFactor": "Sale minimum",
     "saleFactorHintPercent": "% of unit cost (100 % = sell at cost), net; VAT is added on top",
     "saleFactorHintMultiplier": "× unit cost (1 = sell at cost), net; VAT is added on top",
     "calendar": "Calendar",

@@ -130,7 +130,8 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
   let netExact = mul(rat(refBase), row.multiplier);
   if (row.flexed) {
     const mDeep = isSale ? list.sale.deepMultiplier : list.deepest.multiplier;
-    const low = isSale ? list.sale.cost : list.floor;
+    const low = isSale ? list.flex.saleLow : list.flex.low;
+    if (isSale ? list.flex.saleLowRaised : list.flex.lowRaised) steps.push({ key: 'flexLow', value: { moneyRat: low } });
     netExact = spreadPrice(low, isSale ? list.flex.saleTop : list.flex.top, mDeep, row.multiplier);
     steps.push({ key: 'flexPosition', value: { pct: flexPosition(mDeep, row.multiplier) } });
   }

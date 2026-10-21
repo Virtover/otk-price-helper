@@ -12,6 +12,8 @@ interface Props {
   lang: Locale;
   editable: boolean;
   onEditBase: (value?: bigint) => void;
+  /** Adjusts an entered base price to the allowed range (flexible mode). */
+  constrainBase?: (value: bigint) => { value: bigint; note?: string };
 }
 
 interface StatProps {
@@ -36,7 +38,7 @@ function Stat({ label, hint, children, testId, highlight }: StatProps) {
   );
 }
 
-export function Summary({ list, config, lang, editable, onEditBase }: Props) {
+export function Summary({ list, config, lang, editable, onEditBase, constrainBase }: Props) {
   const { t } = useTranslation();
   return (
     <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
@@ -70,6 +72,7 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
                   testId="edit-base"
                   fw={700}
                   onCommit={onEditBase}
+                  constrain={constrainBase}
                 />
               </Text>
             ) : (

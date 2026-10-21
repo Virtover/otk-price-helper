@@ -96,12 +96,6 @@ describe('flexible price list', () => {
     expect(r.effectiveDiscount.n * r.nominalDiscount.d < r.nominalDiscount.n * r.effectiveDiscount.d).toBe(true);
   });
 
-  it('cannot help when the maximum is below the minimum price', () => {
-    const l = flex(withMax(1200n));
-    expect(l.flex.active).toBe(false);
-    expect(codes(l.issues)).toContain('maxBelowFloor');
-  });
-
   it('does nothing without a limit while the base price fits the discounts', () => {
     const r = calculate(input(1000, 1000), config(), { rows: {} }, { flexible: true });
     if (!r.ok) throw new Error('failed');
@@ -137,11 +131,11 @@ describe('flexible price list', () => {
     expect(row(r.list, '300|w4|pre3').netUnit).toBe(1250n);
   });
 
-  it('shift edits on the deepest row fall back to that row only', () => {
+  it('a shift edit of the deepest row to the minimum puts every regular price at the minimum', () => {
     const first = calculate(input(1000, 1000), config(), { rows: {} }, { flexible: true });
     if (!first.ok) throw new Error('failed');
     const overrides = shiftOverrides(row(first.list, '300|w4|pre3'), 1250n, { rows: {} }, first.list);
-    expect(overrides).toEqual({ rows: { '300|w4|pre3': 1250n } });
+    expect(overrides).toEqual({ rows: {}, base: 1250n });
   });
 
   it('every reachable target is hit exactly (property)', () => {
@@ -156,6 +150,66 @@ describe('flexible price list', () => {
       }),
       { numRuns: 150 },
     );
+  });
+
+  describe('edits below the minimum', () => {
+    const first = () => {
+      const r = calculate(input(1000, 1000), config(), { rows: {} }, { flexible: true });
+      if (!r.ok) throw new Error('failed');
+      return r.list;
+    };
+    const after = (key: string, target: bigint) => {
+      const l = first();
+      const o = shiftOverrides(row(l, key), target, { rows: {} }, l);
+      const r = calculate(input(1000, 1000), config(), o, { flexible: true });
+      if (!r.ok) throw new Error('failed');
+      return r.list;
+    };
+
+    it.each([1250n, 1200n, 100n, 1n])('regular target %s: all regular prices at the minimum, none below', (target) => {
+      const l = after('50|retail|peak', target);
+      const regular = l.rows.filter((x) => x.month !== 'sale');
+      expect(regular.every((x) => x.netUnit === 1250n && x.status !== 'error')).toBe(true);
+      expect(l.rows.every((x) => x.netUnit > 0n)).toBe(true);
+      expect(codes(l.issues)).toContain('flexAtMinimum');
+    });
+
+    it.each([1150n, 1000n, 1n])('sale target %s: sale prices at the sale minimum, regular prices valid', (target) => {
+      const l = after('1|retail|sale', target);
+      expect(row(l, '1|retail|sale').netUnit).toBe(1150n);
+      expect(l.rows.some((x) => x.status === 'error')).toBe(false);
+    });
+
+    it('a base of 0 or less is ignored instead of crashing', () => {
+      for (const base of [0n, -5n]) {
+        const r = calculate(input(1000, 1000), config(), { rows: {}, base, saleBase: base }, { flexible: true });
+        expect(r.ok && r.list.baseOverridden).toBe(false);
+        expect(r.ok && row(r.list, '1|retail|peak').netUnit).toBe(2257n);
+      }
+      const plain = calculate(input(1000, 1000), config(), { rows: {}, base: 0n });
+      expect(plain.ok).toBe(true);
+    });
+
+    it('a limit below the minimum keeps regular prices at the minimum', () => {
+      const r = calculate({ ...input(1000, 1000), maxPriceGr: 1000n }, config(), { rows: {} }, { flexible: true });
+      if (!r.ok) throw new Error('failed');
+      expect(r.list.rows.filter((x) => x.month !== 'sale').every((x) => x.netUnit === 1250n)).toBe(true);
+      expect(codes(r.list.issues)).toContain('maxBelowFloor');
+    });
+
+    it('no edit ever produces a price below the minimum (property)', () => {
+      const l = first();
+      fc.assert(
+        fc.property(fc.constantFrom(...l.rows), fc.bigInt({ min: 1n, max: 5000n }), (r, target) => {
+          const o = shiftOverrides(r, target, { rows: {} }, l);
+          const next = calculate(input(1000, 1000), config(), o, { flexible: true });
+          if (!next.ok) return false;
+          // Only an individual edit (deepest row) may sit below the minimum, and it is flagged.
+          return next.list.rows.every((x) => x.status !== 'error' || x.overridden);
+        }),
+        { numRuns: 300 },
+      );
+    });
   });
 
   it('uses the lower of the limit and a lowered base as the top', () => {

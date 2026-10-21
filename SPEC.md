@@ -181,7 +181,7 @@ by their package and customer multipliers. Month discounts do not apply in sale.
      It may differ from `gross_u · q` by a few grosze and is then not divisible by `q`;
      the breakdown panel shows an info note in that case.
 9. **Sale combinations**
-   sale price `S = s·K / (1 − f·(1+VAT))` (100 % = break-even after fees),
+   sale minimum (minimum wyprzedaży) `S = s·K / (1 − f·(1+VAT))` (100 % = break-even after fees),
    `B_sale = ⌈S / (m(largest tier) · m(largest customer))⌉`, then steps 6–8 with `m_month = 1`
    and `B_sale` instead of `B`.
 10. **Profit** (exact, using exact net): `fee_u = net_u · f·(1+VAT)`, `profit_u = net_u − fee_u − K`,
@@ -195,7 +195,7 @@ by their package and customer multipliers. Month discounts do not apply in sale.
     and the top by its nominal multiplier:
     `net_u = ⌈F + (X − F) · (m − M_deep) / (1 − M_deep)⌉` — deepest combination = `F`, no discount = `X`.
     **Sale prices are linked** to regular ones: the sale top is `max(⌈X · B_sale / B⌉, ⌈S⌉)` — the same
-    ratio as without flexibility, never below the sale price itself. They are priced from that top
+    ratio as without flexibility, never below the sale minimum `S`. They are priced from that top
     (spread between `S` and the top when it is below `B_sale`), so any change of the regular top moves
     them proportionally; a shift edit of a sale price moves the regular base so the edited sale row
     lands exactly on the typed price. A shift edit that makes the base
@@ -208,7 +208,7 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 - I2. The anchor combination's `net_u − F < 2 gr` (anchor is tight: ≤ 1 gr from ceiling `B`, ≤ 1 gr from ceiling `net_u`).
 - I3. `net_total == net_u · q` exactly; all values in grosze are integers.
 - I4. Monotonic: more discount in any dimension ⇒ unit price not higher.
-- I5. Sale deepest combination: exact `net_u ≥ S` (sale price after fees).
+- I5. Sale deepest combination: exact `net_u ≥ S` (sale minimum, after fees).
 - I7. With fees, profit after fees on every regular row `≥` minimum profit.
 - I8. Flexible mode: every regular price in `[F, X]`, still monotonic in the nominal discount.
 - I6. Results are independent of order of discount application.
@@ -256,6 +256,18 @@ pre-peak 1–3, sale) = **125 rows**.
     base follows its discounts. Regular rows shift `B`, sale rows shift only the sale base. Individually
     edited rows keep their value. "Reset to calculated prices" removes the shift.
   - on — only the edited combination changes (override).
+- **Package price editing**: for packages (`q > 1`) the editor switches between "per unit" and
+  "per package"; a package price is snapped to the nearest amount divisible by `q`
+  (unit = round_half_up(total / q)), with a note when it was rounded.
+- **Flexible mode keeps every edit in range, symmetrically**: every regular combination may take any
+  price between the minimum `⌈F⌉` and the price limit `X` (sale rows: between `⌈S⌉` and the highest
+  sale price the limit allows); no upper bound without a limit. Lowering a price far enough puts every
+  regular price at the minimum; raising one to the limit puts every regular price at the limit.
+  Up to the row's price at top = `X` (bottom = `F`) the edit moves the top; above it the top stays at
+  `X` and the **bottom of the spread** rises (`L = ⌊(target − 1 − X·pos) / (1 − pos)⌋ + 1`), shrinking
+  the discounts further. An entered value outside is replaced by the nearest bound — shown in the field —
+  with a note saying why (raised to the minimum / lowered because of the maximum price). Applies to
+  the editor panel, inline table edits and the base price card.
 - Unit **net** price is the editable one; gross is always derived.
 - Manual edits are cleared (with a notice) when purchase cost, quantity or settings change —
   they refer to concrete prices that would otherwise silently become wrong.

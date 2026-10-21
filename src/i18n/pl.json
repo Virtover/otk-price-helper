@@ -117,7 +117,18 @@
     "shiftSaleHint": "Zmiana przesunie wszystkie ceny wyprzedażowe zgodnie z rabatami.",
     "individualHint": "Zmieni tylko tę jedną kombinację. Brutto i sumy pakietu są przeliczane.",
     "resetShift": "Przywróć wyliczone ceny",
-    "shiftLinkedHint": "Elastyczny cennik: zmiana przesunie wszystkie ceny — wyprzedażowe i zwykłe — zgodnie z rabatami."
+    "shiftLinkedHint": "Elastyczny cennik: zmiana przesunie wszystkie ceny — wyprzedażowe i zwykłe. Gdy pełne rabaty nie mieszczą się między ceną minimalną a najwyższą, rabaty zostaną proporcjonalnie zmniejszone.",
+    "perUnit": "Za sztukę",
+    "perPackage": "Za pakiet ({{qty}} szt.)",
+    "netPackage": "Cena netto za pakiet",
+    "snappedPackage": "Zaokrąglono do {{total}} — cena pakietu musi być podzielna przez {{qty}} szt. ({{unit}} za sztukę).",
+    "clampedMin": "Podniesiono do {{value}} za sztukę — elastyczny cennik nie schodzi poniżej ceny minimalnej ({{min}}).",
+    "clampedMinSale": "Podniesiono do {{value}} za sztukę — ceny wyprzedażowe nie schodzą poniżej minimum wyprzedaży ({{min}} = koszt jednostkowy × współczynnik wyprzedaży).",
+    "clampedMax": "Obniżono do {{value}} za sztukę — elastyczny cennik nie przekracza ceny maksymalnej ({{max}}).",
+    "clampedTopMin": "Podniesiono do {{value}} — elastyczny cennik nie schodzi poniżej ceny minimalnej.",
+    "clampedTopMax": "Obniżono do {{value}} — cena bazowa nie może przekroczyć ceny maksymalnej.",
+    "packageTotal": "Za pakiet {{qty}} szt.: {{total}}.",
+    "clampedMaxSale": "Obniżono do {{value}} za sztukę — przy cenie maksymalnej {{max}} ceny wyprzedażowe nie przekraczają {{value}}."
   },
   "breakdown": {
     "title": "Skąd ta cena?",
@@ -134,7 +145,7 @@
     "base": "= cena bazowa (w górę)",
     "baseOverride": "= cena bazowa (edytowana ręcznie)",
     "saleFactor": "× współczynnik wyprzedaży (od kosztu)",
-    "saleCost": "= cena wyprzedażowa najgłębszej kombinacji",
+    "saleCost": "= minimum wyprzedaży (najgłębsza kombinacja)",
     "saleDeepMultiplier": "÷ najgłębszy rabat pakiet × klient",
     "saleBaseExact": "= dokładna baza wyprzedaży",
     "saleBase": "= baza wyprzedaży (w górę)",
@@ -151,14 +162,15 @@
     "grossNotDivisible": "Brutto za szt. × liczba dałoby tyle — różnica {{diff}}, bo VAT liczony jest od sumy netto jak na fakturze",
     "profitUnit": "Zysk na sztuce ({{pct}} kosztu zakupu)",
     "belowFloor": "Poniżej ceny minimalnej {{threshold}} o tyle na sztuce",
-    "belowSale": "Poniżej ceny wyprzedażowej {{threshold}} o tyle na sztuce",
+    "belowSale": "Poniżej minimum wyprzedaży {{threshold}} o tyle na sztuce",
     "saleBaseOverride": "= baza wyprzedaży (przesunięta ręcznie)",
     "aboveMax": "Powyżej ceny maksymalnej {{max}} o tyle na sztuce",
     "feeDivisor": "÷ (1 − prowizja {{fee}} × (1 + VAT {{vat}}))",
     "flexTop": "Elastyczny cennik: najwyższa cena (bez rabatu)",
     "flexPosition": "Położenie między ceną minimalną (0 %) a maksymalną (100 %)",
     "feeUnit": "− prowizja od ceny sprzedaży ({{fee}} brutto)",
-    "flexSaleLinked": "Elastyczny cennik: najwyższa cena wyprzedażowa = {{ratio}} najwyższej ceny {{top}}"
+    "flexSaleLinked": "Elastyczny cennik: najwyższa cena wyprzedażowa = {{ratio}} najwyższej ceny {{top}}",
+    "flexLow": "Elastyczny cennik: najniższa cena (podniesiona edycją)"
   },
   "issues": {
     "title": "Komunikaty",
@@ -201,7 +213,9 @@
     "calendarUnknown": "Kalendarz wskazuje nieistniejący rodzaj miesiąca.",
     "feeTooHigh": "Prowizja razem z VAT nie może pochłaniać 100 % ceny.",
     "flexActive": "Elastyczny cennik: pełne rabaty wymagałyby ceny bazowej {{base}}, a najwyższa cena to {{max}} — ceny rozłożono między ceną minimalną a {{max}}.",
-    "flexSaleActive": "Elastyczny cennik: ceny wyprzedażowe rozłożono między kosztem a {{max}}."
+    "flexSaleActive": "Elastyczny cennik: ceny wyprzedażowe rozłożono między minimum wyprzedaży a {{max}}.",
+    "flexAtMinimum": "Elastyczny cennik nie schodzi poniżej ceny minimalnej — najwyższa cena została podniesiona do {{floor}}, więc wszystkie zwykłe ceny są równe minimum.",
+    "flexLowRaised": "Elastyczny cennik: najniższa cena podniesiona do {{low}} (najwyższa {{max}}) — rabaty zmniejszono, aby edytowana cena się zmieściła."
   },
   "settings": {
     "costs": "Koszty i zysk",
@@ -235,7 +249,7 @@
     "moveDown": "W dół",
     "months": "Rodzaje miesięcy",
     "sale": "Wyprzedaż",
-    "saleFactor": "Cena wyprzedażowa",
+    "saleFactor": "Minimum wyprzedaży",
     "saleFactorHintPercent": "% kosztu jednostkowego (100 % = sprzedaż po koszcie), netto; VAT doliczany",
     "saleFactorHintMultiplier": "× koszt jednostkowy (1 = sprzedaż po koszcie), netto; VAT doliczany",
     "calendar": "Kalendarz",

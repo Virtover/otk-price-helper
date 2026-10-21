@@ -60,7 +60,8 @@ interface Stored {
 }
 
 const countOverrides = (o: Overrides) =>
-  Object.keys(o.rows).length + (o.base !== undefined ? 1 : 0) + (o.saleBase !== undefined ? 1 : 0);
+  Object.keys(o.rows).length +
+  [o.base, o.saleBase, o.flexLow, o.flexSaleLow].filter((v) => v !== undefined).length;
 const NO_OVERRIDES: Overrides = { rows: {} };
 
 /** Manual edits refer to concrete prices; once the inputs change they would be misleading. */
