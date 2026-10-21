@@ -49,7 +49,7 @@ type LabelledItem = CustomerType;
 
 /** Field widths: values are 1–5 characters, hints wrap under the input. */
 const NARROW = 100;
-const WIDE = 180;
+const WIDE = 160;
 const LABEL_W = 140;
 
 export function SettingsTab({ state, dispatch }: Props) {
@@ -344,6 +344,8 @@ export function SettingsTab({ state, dispatch }: Props) {
           {moneyField('handling.fixedGr', t('settings.handlingFixed'), config.handling.fixedGr, (v) =>
             update((c) => (c.handling.fixedGr = v)), t('settings.handlingFixedHint'))}
           {percentField('vatBp', t('settings.vat'), config.vatBp, (v) => update((c) => (c.vatBp = v)))}
+          {percentField('fees.percentBp', t('settings.fees'), config.fees.percentBp, (v) =>
+            update((c) => (c.fees.percentBp = v)), t('settings.feesHint'))}
           {percentField('minProfit.percentBp', t('settings.minProfitPercent'), config.minProfit.percentBp, (v) =>
             update((c) => (c.minProfit.percentBp = v)), t('settings.minProfitPercentHint'))}
           {moneyField('minProfit.fixedGr', t('settings.minProfitFixed'), config.minProfit.fixedGr, (v) =>

@@ -3,7 +3,7 @@
  * Steps are data; the UI translates `key` (under "breakdown.") and formats `value`.
  */
 import { type Rat, ceil, fromBp, isInteger, mul, rat, sub } from './rational';
-import { monthDiscountBp, multiplierOf } from './pricing';
+import { flexPosition, monthDiscountBp, multiplierOf, spreadPrice } from './pricing';
 import type { Config, IssueParam, PriceList, PriceRow } from './types';
 
 export type StepValue =
@@ -53,16 +53,35 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
   }
   steps.push({ key: 'unitCost', value: { moneyRat: list.unitCost } });
 
+  const hasFee = config.fees.percentBp > 0;
+  const feeStep: Step = {
+    key: 'feeDivisor',
+    value: { mult: list.fees.keep },
+    params: { fee: { pct: fromBp(config.fees.percentBp) }, vat: { pct: fromBp(config.vatBp) } },
+  };
+  const flexTopStep = (): Step => ({ key: 'flexTop', value: { money: isSale ? list.flex.saleTop : list.flex.top } });
+
   let refBase: bigint;
   if (isSale) {
+    steps.push({ key: 'saleFactor', value: { pct: fromBp(config.sale.factorBp) } });
+    if (hasFee) steps.push(feeStep);
     steps.push(
-      { key: 'saleFactor', value: { pct: fromBp(config.sale.factorBp) } },
       { key: 'saleCost', value: { moneyRat: list.sale.cost } },
       { key: 'saleDeepMultiplier', value: { mult: list.sale.deepMultiplier } },
       { key: 'saleBaseExact', value: { moneyPrecise: list.sale.baseExact } },
-      { key: list.sale.baseOverridden ? 'saleBaseOverride' : 'saleBase', value: { money: list.sale.base } },
+      { key: list.sale.baseOverridden && !list.flex.requested ? 'saleBaseOverride' : 'saleBase', value: { money: list.flex.requested ? list.sale.baseCalculated : list.sale.base } },
     );
-    refBase = row.stale ? list.sale.baseCalculated : list.sale.base;
+    if (list.flex.requested) {
+      // Linked to the regular top price.
+      steps.push({
+        key: 'flexSaleLinked',
+        value: { money: list.flex.saleTop },
+        params: { ratio: { pct: list.flex.saleRatio }, top: { money: list.flex.top } },
+      });
+      refBase = list.flex.saleTop;
+    } else {
+      refBase = row.stale ? list.sale.baseCalculated : list.sale.base;
+    }
   } else {
     steps.push(
       {
@@ -73,6 +92,7 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
           fixed: { money: BigInt(config.minProfit.fixedGr) },
         },
       },
+      ...(hasFee ? [feeStep] : []),
       { key: 'floor', value: { moneyRat: list.floor } },
       {
         key: 'deepMultiplier',
@@ -86,6 +106,7 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
       { key: 'baseExact', value: { moneyPrecise: list.baseExact } },
       { key: list.baseOverridden ? 'baseOverride' : 'base', value: { money: list.base } },
     );
+    if (row.flexed) steps.push(flexTopStep());
     refBase = row.stale ? list.baseCalculated : list.base;
   }
 
@@ -106,7 +127,13 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
       params: { month: monthParam(config, row.month) },
     });
   }
-  const netExact = mul(rat(refBase), row.multiplier);
+  let netExact = mul(rat(refBase), row.multiplier);
+  if (row.flexed) {
+    const mDeep = isSale ? list.sale.deepMultiplier : list.deepest.multiplier;
+    const low = isSale ? list.sale.cost : list.floor;
+    netExact = spreadPrice(low, isSale ? list.flex.saleTop : list.flex.top, mDeep, row.multiplier);
+    steps.push({ key: 'flexPosition', value: { pct: flexPosition(mDeep, row.multiplier) } });
+  }
   steps.push({ key: 'netExact', value: { moneyPrecise: netExact } });
   if (row.overridden) {
     steps.push({ key: 'netOverride', value: { money: row.netUnit }, params: { calculated: { money: ceil(netExact) } } });
@@ -127,6 +154,9 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
       value: { money: row.grossUnit * row.qty },
       params: { diff: { money: row.grossUnit * row.qty - row.grossTotal } },
     });
+  }
+  if (hasFee) {
+    steps.push({ key: 'feeUnit', value: { moneyRat: row.feeUnit }, params: { fee: { pct: fromBp(config.fees.percentBp) } } });
   }
   steps.push({
     key: 'profitUnit',

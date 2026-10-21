@@ -14,9 +14,9 @@ export function sanitizeFileName(name: string, fallback: string): string {
   return s;
 }
 
-/** "<product>_<YYYY-MM-DD>.csv" using the local date. */
-export function exportFileName(name: string, date: Date, fallback: string): string {
+/** "<product>_<YYYY-MM-DD>.<ext>" using the local date. */
+export function exportFileName(name: string, date: Date, fallback: string, ext = 'xlsx'): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  return `${sanitizeFileName(name, fallback)}_${day}.csv`;
+  return `${sanitizeFileName(name, fallback)}_${day}.${ext}`;
 }

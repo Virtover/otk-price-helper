@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Config } from '../core/types';
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 const int = z.number().int();
 
@@ -20,10 +20,11 @@ const labelled = z
  */
 export const configSchema = z
   .object({
-    schemaVersion: z.literal(2),
+    schemaVersion: z.literal(3),
     handling: z.object({ percentBp: int, fixedGr: int }).strict(),
     minProfit: z.object({ percentBp: int, fixedGr: int }).strict(),
     vatBp: int,
+    fees: z.object({ percentBp: int }).strict(),
     packages: z.array(z.object({ qty: int, discountBp: int }).strict()).max(50),
     customers: z.array(labelled).max(50),
     months: z.array(labelled).max(24),

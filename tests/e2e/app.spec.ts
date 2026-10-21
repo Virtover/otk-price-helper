@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import ExcelJS from 'exceljs';
 import { type Page, expect, test } from '@playwright/test';
 
 async function fill(page: Page, cost: string, qty: string) {
@@ -148,22 +149,75 @@ test('multiplier input mode converts discounts', async ({ page }) => {
   await expect(page.locator('#field-packages-0-discountBp')).toHaveValue('3');
 });
 
-test('CSV export requires a name and writes Polish Excel format', async ({ page }) => {
+test('XLSX export requires a name and writes the workbook', async ({ page }) => {
   await fill(page, '10', '1000');
-  await page.getByTestId('export-csv').click();
+  await page.getByTestId('export-xlsx').click();
   await expect(page.getByText('Nazwa produktu jest wymagana do eksportu')).toBeVisible();
 
   await page.getByLabel('Nazwa produktu').fill('Kubek: 330/ml');
   const download = page.waitForEvent('download');
-  await page.getByTestId('export-csv').click();
+  await page.getByTestId('export-xlsx').click();
   const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^Kubek_330_ml_\d{4}-\d{2}-\d{2}\.csv$/);
-  const content = readFileSync(await file.path(), 'utf8');
-  expect(content.charCodeAt(0)).toBe(0xfeff);
-  const lines = content.trim().split('\r\n');
-  expect(lines).toHaveLength(126);
-  expect(lines[0]).toContain('Pakiet;Klient;Miesiąc;Szt. netto');
-  expect(lines.find((l) => l.startsWith('300;hurt 4;Przedszczyt 3;'))).toContain('12,51;15,39;3753,00;4616,19');
+  expect(file.suggestedFilename()).toMatch(/^Kubek_330_ml_\d{4}-\d{2}-\d{2}\.xlsx$/);
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(await file.path());
+  expect(wb.worksheets.map((w) => w.name)).toEqual([
+    'Cennik',
+    'Wszystkie kombinacje',
+    'Rabaty',
+    'Obliczenia',
+    'Ustawienia',
+    'Uwagi',
+  ]);
+  const all = wb.getWorksheet('Wszystkie kombinacje')!;
+  expect(all.rowCount).toBe(126);
+  const header = (all.getRow(1).values as unknown[]).slice(1);
+  let anchor: unknown[] = [];
+  all.eachRow((r) => {
+    const v = (r.values as unknown[]).slice(1);
+    if (v[header.indexOf('Klucz')] === '300|w4|pre3') anchor = v;
+  });
+  expect(anchor.slice(3, 7)).toEqual([12.51, 15.39, 3753, 4616.19]);
+});
+
+test('flexible price list fits prices under the maximum', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await page.getByLabel('Cena maksymalna (netto, za sztukę)').fill('20');
+  await pickMonth(page, 'Szczyt');
+  await expect(page.getByTestId('cell-1|retail|peak')).toHaveAttribute('data-above-max', 'true');
+
+  await page.getByText('Elastyczny cennik').click();
+  await expect(page.getByTestId('cell-1|retail|peak')).toContainText('20,00');
+  await expect(page.getByTestId('cell-1|retail|peak')).not.toHaveAttribute('data-above-max', 'true');
+  await expect(page.getByTestId('flex-badge')).toBeVisible();
+  await expect(page.getByTestId('stat-base')).toContainText('20,00');
+  await expect(page.getByTestId('issues-info')).toContainText('rozłożono między ceną minimalną a 20,00');
+  await pickMonth(page, 'Wyprzedaż');
+  await expect(page.getByTestId('cell-1|retail|sale')).toContainText('12,89');
+  await pickMonth(page, 'Szczyt');
+
+  // A shift edit in flexible mode lands exactly on the typed price; the others follow.
+  await page.getByTestId('cell-50|retail|peak').click();
+  await page.getByTestId('price-editor-input').fill('18');
+  await page.getByTestId('price-editor-apply').click();
+  await expect(page.getByTestId('cell-50|retail|peak')).toContainText('18,00');
+  await expect(page.getByTestId('cell-1|retail|peak')).not.toContainText('20,00');
+
+  // Sale prices are linked to the regular ones: they moved down with them.
+  await page.keyboard.press('Escape');
+  await pickMonth(page, 'Wyprzedaż');
+  await expect(page.getByTestId('cell-1|retail|sale')).not.toContainText('14,54');
+});
+
+test('fees on the selling price raise the minimum price', async ({ page }) => {
+  await fill(page, '10', '1000');
+  await expect(page.getByTestId('stat-floor')).toContainText('12,50');
+  await page.getByRole('tab', { name: /Ustawienia/ }).click();
+  await page.locator('#field-fees-percentBp').fill('10');
+  await page.getByRole('tab', { name: 'Kalkulator' }).click();
+  // 12,50 / (1 − 10 % × 1,23) = 14,25
+  await expect(page.getByTestId('stat-floor')).toContainText('14,25');
 });
 
 test('config save and load round-trip', async ({ page }, testInfo) => {

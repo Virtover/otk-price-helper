@@ -60,8 +60,9 @@ export function Breakdown(props: Props) {
             onEdit={onEdit}
             individually={individually}
             onIndividually={onIndividually}
-            shifted={row.month === 'sale' ? list.sale.baseOverridden : list.baseOverridden}
-            onResetShift={() => onResetShift(row.month === 'sale')}
+            shifted={row.month === 'sale' && !list.flex.requested ? list.sale.baseOverridden : list.baseOverridden}
+            onResetShift={() => onResetShift(row.month === 'sale' && !list.flex.requested)}
+            linked={list.flex.requested}
           />
           <Divider />
           <Table verticalSpacing={4} fz="sm">

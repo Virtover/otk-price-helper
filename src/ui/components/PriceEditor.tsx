@@ -16,6 +16,8 @@ interface Props {
   /** The base this row derives from was moved by an earlier shift edit. */
   shifted: boolean;
   onResetShift: () => void;
+  /** Flexible mode: sale and regular prices are linked. */
+  linked?: boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ interface Props {
  * shares this row's base (according to discounts); "edit individually" changes only this row.
  */
 export function PriceEditor(props: Props) {
-  const { row, calculated, lang, onEdit, individually, onIndividually, shifted, onResetShift } = props;
+  const { row, calculated, lang, onEdit, individually, onIndividually, shifted, onResetShift, linked } = props;
   const { t } = useTranslation();
   const [text, setText] = useState(() => formatMoneyInput(row.netUnit, lang));
   const [error, setError] = useState<string>();
@@ -93,6 +95,8 @@ export function PriceEditor(props: Props) {
         <Text size="xs" c="dimmed" data-testid="price-editor-hint">
           {individually
             ? t('edit.individualHint')
+            : linked
+            ? t('edit.shiftLinkedHint')
             : row.month === 'sale'
               ? t('edit.shiftSaleHint')
               : t('edit.shiftHint')}

@@ -1,10 +1,9 @@
 /**
  * Property-based tests for the invariants in SPEC.md §5.3 and for exact
- * round-trips of number formats and CSV.
+ * round-trips of number formats.
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { parseCsv, toCsv } from '../../src/core/csv';
 import { formatBpInput, formatMoney, formatMultiplierInput, parseMoney, parseMultiplierBp, parsePercentBp } from '../../src/core/money';
 import { calculate } from '../../src/core/pricing';
 import { ge, le, lt, mul, rat, sub } from '../../src/core/rational';
@@ -159,15 +158,6 @@ describe('format round-trips', () => {
         const pct = parsePercentBp(formatBpInput(bp, loc));
         const mult = parseMultiplierBp(formatMultiplierInput(10000 - bp, loc));
         return pct.ok && mult.ok && pct.value === BigInt(bp) && 10000n - mult.value === BigInt(bp);
-      }),
-    );
-  });
-
-  it('CSV parse ∘ write = id', () => {
-    const cell = fc.string({ unit: fc.constantFrom('a', 'ż', ';', ',', '"', '\n', '\r\n', ' ', '1') });
-    fc.assert(
-      fc.property(fc.array(fc.array(cell, { minLength: 1, maxLength: 5 }), { minLength: 1, maxLength: 5 }), fc.constantFrom(';', ','), (table, sep) => {
-        expect(parseCsv(toCsv(table, sep), sep)).toEqual(table);
       }),
     );
   });

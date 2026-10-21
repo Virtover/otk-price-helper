@@ -1,6 +1,6 @@
 # OTK Price Helper — Specification
 
-Status: **draft v0.4** · Date: 2026-10-20
+Status: **draft v0.5** · Date: 2026-10-21
 Items marked **[ASSUMPTION]** are decisions taken by default and still open for confirmation (see §15).
 
 ---
@@ -64,6 +64,7 @@ All values editable in the app, savable to / loadable from a JSON file (§11).
 | Min profit % `p%` (of `c`) | 10 % | `≥ 0` |
 | Min profit fixed `P` (per unit) | 0.00 PLN | `≥ 0` |
 | VAT | 23 % | `0 ≤ VAT ≤ 100 %`; warning if not one of 0/5/8/23 |
+| Fees on the selling price `f` (marketplace, payments) | 0 % | % of the **gross** price; `f · (1+VAT) < 100 %` |
 
 Min profit components are **added**: `c·p% + P`.
 
@@ -162,7 +163,8 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 1. **Unit cost**
    `K = c·(1+h) + ⌈H / N⌉` — fixed handling per unit is ceiled to the grosz (shop never under-recovers `H`).
 2. **Floor**
-   `F = K + c·p% + P`
+   `F = (K + c·p% + P) / (1 − f·(1+VAT))` — the fee is a share of the gross price, so the shop keeps
+   `1 − f·(1+VAT)` of every net złoty; with `f = 0` this is `K + c·p% + P`.
 3. **Eligible package tiers** — tiers with threshold `> N` are **excluded** from anchor and output,
    with a warning [ASSUMPTION A7].
 4. **Deepest non-sale multiplier**
@@ -179,11 +181,26 @@ by their package and customer multipliers. Month discounts do not apply in sale.
      It may differ from `gross_u · q` by a few grosze and is then not divisible by `q`;
      the breakdown panel shows an info note in that case.
 9. **Sale combinations**
-   `B_sale = ⌈s·K / (m(largest tier) · m(largest customer))⌉`, then steps 6–8 with `m_month = 1`
+   sale price `S = s·K / (1 − f·(1+VAT))` (100 % = break-even after fees),
+   `B_sale = ⌈S / (m(largest tier) · m(largest customer))⌉`, then steps 6–8 with `m_month = 1`
    and `B_sale` instead of `B`.
-10. **Profit** (exact, using exact net): `profit_u = net_u − K`, `profit_% = profit_u / c`,
-    `profit_total = profit_u · q`.
-11. **Effective discount** vs `B` (or `B_sale`): `1 − net_u / B` — differs from nominal by rounding.
+10. **Profit** (exact, using exact net): `fee_u = net_u · f·(1+VAT)`, `profit_u = net_u − fee_u − K`,
+    `profit_% = profit_u / c`, `profit_total = profit_u · q`.
+11. **Applied (effective) discount** vs the highest price (`B`, `B_sale`, or the maximum price in
+    flexible mode): `1 − net_u / top` — differs from nominal by rounding, edits and flexible mode.
+12. **Flexible price list** (toggle "Elastyczny cennik", default off, remembered). The top price
+    `X = min(price limit, base actually used)` — the limit from step 1 and/or a manually lowered
+    base; no limit is required. Active when `X` is below the base the full discounts need
+    (`X < ⌈F / M_deep⌉`) and `X ≥ F`. Then every regular price is spread linearly between the floor
+    and the top by its nominal multiplier:
+    `net_u = ⌈F + (X − F) · (m − M_deep) / (1 − M_deep)⌉` — deepest combination = `F`, no discount = `X`.
+    **Sale prices are linked** to regular ones: the sale top is `max(⌈X · B_sale / B⌉, ⌈S⌉)` — the same
+    ratio as without flexibility, never below the sale price itself. They are priced from that top
+    (spread between `S` and the top when it is below `B_sale`), so any change of the regular top moves
+    them proportionally; a shift edit of a sale price moves the regular base so the edited sale row
+    lands exactly on the typed price. A shift edit that makes the base
+    too low picks the top so the edited row lands exactly on the typed price; where no top can do
+    that (deepest row, top above the limit) the edit applies to that row only.
 
 ### 5.3 Invariants (must hold, enforced by tests)
 
@@ -191,7 +208,9 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 - I2. The anchor combination's `net_u − F < 2 gr` (anchor is tight: ≤ 1 gr from ceiling `B`, ≤ 1 gr from ceiling `net_u`).
 - I3. `net_total == net_u · q` exactly; all values in grosze are integers.
 - I4. Monotonic: more discount in any dimension ⇒ unit price not higher.
-- I5. Sale deepest combination: exact `net_u ≥ s·K`.
+- I5. Sale deepest combination: exact `net_u ≥ S` (sale price after fees).
+- I7. With fees, profit after fees on every regular row `≥` minimum profit.
+- I8. Flexible mode: every regular price in `[F, X]`, still monotonic in the nominal discount.
 - I6. Results are independent of order of discount application.
 
 ---
@@ -221,7 +240,7 @@ pre-peak 1–3, sale) = **125 rows**.
 
 - **Matrix** (default): rows = package tiers, columns = customer types, selector = month type;
   each cell shows unit price (basis) and package total; colour = status.
-- **Flat table**: all rows, sortable/filterable — identical to CSV export.
+- **Flat table**: all rows, sortable/filterable — same rows as the XLSX export.
 - **Summary header**: `K`, `F`, `B` net/gross, retail profit as % of `c`.
 - **Breakdown panel** ("why this price?"): click a row → waterfall
   `c → +handling % → +fixed handling → K → +min profit → F → ÷M_deep → B → ×discounts → rounding → VAT → result`.
@@ -273,7 +292,7 @@ Every error/warning must point to **what** to change (field link/focus), not jus
 
 ## 9. UX structure
 
-- **Tab 1 — Calculator** (default): 3 inputs → summary header → matrix. Button "Export CSV".
+- **Tab 1 — Calculator** (default): 3 inputs → summary header → matrix. Button "Export XLSX"; toggle "Elastyczny cennik" (with tooltip) next to it.
   Toggle "Show details" reveals flat table, overrides, smart-updates checkbox, breakdown panel.
 - **Tab 2 — Settings**: sections 4.1–4.3, %/multiplier toggles, calendar (collapsed "advanced"),
   Save / Load / Reset to defaults, unsaved-changes indicator.
@@ -281,12 +300,21 @@ Every error/warning must point to **what** to change (field link/focus), not jus
 
 ---
 
-## 10. CSV export
+## 10. XLSX export
 
-- Encoding **UTF-8 with BOM**, separator `;`, decimal comma (`12,50`), CRLF — opens correctly in Polish Excel.
-- Header row localized to the current UI language.
-- Option (advanced): `,` separator + decimal point for non-Polish tools.
-- Default filename: `<product-name>_<YYYY-MM-DD>.csv`.
+One workbook, labels in the UI language, money as numbers with currency format (Excel can sum/sort),
+percentages as % format. Default filename: `<product-name>_<YYYY-MM-DD>.xlsx`.
+
+| Sheet | For whom | Content |
+|---|---|---|
+| **Cennik** (Price list) | the shop owner | key facts (cost, minimum, base/top price, limit, flexible mode), then per month type a package × customer table of net unit prices with the gross table beside it; status colours, prices above the limit in orange; legend |
+| **Wszystkie kombinacje** | technical | every row: quantities, prices, totals, multiplier, nominal & applied discount, fee, profit, status and flags (edited, stale, above max, flexed, shortfall), row key; frozen header, autofilter |
+| **Rabaty** (Discounts) | both | per row: package, customer and month discount, nominal total, applied discount, difference — always present, shows the compression in flexible mode |
+| **Obliczenia** | technical | the calculation chain from purchase cost to base / sale base, with exact intermediate values |
+| **Ustawienia** | audit | snapshot of the settings used (costs, VAT, fees, packages, customer and month types, calendar) |
+| **Uwagi** | both | the messages shown in the app at export time |
+
+Export asks for confirmation when prices are below the minimum or rows are not recalculated.
 
 ---
 
@@ -296,10 +324,11 @@ JSON, with schema version for migration:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "handling": { "percentBp": 1000, "fixedGr": 50000 },
   "minProfit": { "percentBp": 1000, "fixedGr": 0 },
   "vatBp": 2300,
+  "fees": { "percentBp": 0 },
   "packages": [
     { "qty": 50, "discountBp": 200 },
     { "qty": 100, "discountBp": 400 },
@@ -325,14 +354,14 @@ JSON, with schema version for migration:
 }
 ```
 
-Validated with a schema on load; invalid files never partially apply. Version 1 files (fixed
-`{ peakBp, prePeakBp[3] }`) are migrated automatically to the month-type list with the same ids.
+Validated with a schema on load; invalid files never partially apply. Older files are migrated
+automatically: v1 (fixed `{ peakBp, prePeakBp[3] }`) → month-type list with the same ids; v2 → `fees: 0`.
 
 ---
 
 ## 12. Internationalization
 
-- `pl.json`, `en.json`; all user-visible strings (incl. errors and CSV headers) go through i18n.
+- `pl.json`, `en.json`; all user-visible strings (incl. errors and XLSX sheets/headers) go through i18n.
 - Number formatting via `Intl.NumberFormat` (`pl-PL`: `1 234,50 zł`; `en`: `PLN 1,234.50`).
 - Input parsing accepts both decimal separators regardless of language.
 
@@ -355,7 +384,8 @@ Validated with a schema on load; invalid files never partially apply. Version 1 
 | Packaging | Tauri bundler → Windows `.msi` / `.exe` |
 
 ```
-src/core/       rational, money, pricing engine, validation, csv   (no UI imports)
+src/core/       rational, money, pricing engine, validation, breakdown   (no UI imports)
+src/export/     XLSX workbook (ExcelJS, loaded on demand)
 src/config/     schema, defaults, migration, load/save
 src/ui/         calculator tab, settings tab, matrix, table, breakdown
 src/i18n/       pl.json, en.json
@@ -366,12 +396,12 @@ tests/          unit, property, e2e
 
 ## 14. Testing
 
-- **Unit**: each calculation step; rounding helpers; parsing `12,50`/`12.50`; CSV formatting; config migration.
-- **Property-based** (fast-check, random valid configs & inputs): invariants I1–I6; CSV round-trip;
+- **Unit**: each calculation step; rounding helpers; parsing `12,50`/`12.50`; XLSX sheets and values; config migration.
+- **Property-based** (fast-check, random valid configs & inputs): invariants I1–I8;
   "%" ⇔ multiplier round-trip.
 - **Golden test**: worked example §16 must reproduce exactly.
 - **Validation**: one test per rule in §4.4 and §8.
-- **E2E**: enter 3 inputs → matrix shows anchor at floor; edit cell with smart updates; save/load config; switch language; export CSV.
+- **E2E**: enter 3 inputs → matrix shows anchor at floor; edit cell with smart updates; save/load config; switch language; export XLSX; flexible mode; fees.
 - Coverage target: `src/core` ≥ 95 % lines.
 
 ---

@@ -27,6 +27,8 @@ const migrations: Record<number, Migration> = {
       months: V1_MONTH_LABELS.map(([id, pl, en], i) => ({ id, label: { pl, en }, discountBp: discounts[i] })),
     };
   },
+  // v2 → v3: price-proportional fees, none by default.
+  2: (old) => ({ ...old, fees: { percentBp: 0 } }),
 };
 
 /** Parses a config file. Never returns a partially applied config. */

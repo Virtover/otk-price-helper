@@ -1,19 +1,18 @@
-import { Alert, Button, Checkbox, Group, Paper, Select, Stack, Switch, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Checkbox, Group, Paper, Stack, Switch, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { type Dispatch, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { INTERNATIONAL, POLISH_EXCEL, type CsvLabels, priceListCsv } from '../core/csv';
 import { exportFileName } from '../core/filename';
 import { parseInteger, parseMoney } from '../core/money';
 import { calculate, monthIds, shiftOverrides } from '../core/pricing';
-import type { MonthType, PriceRow, ProductInput } from '../core/types';
-import { confirmDialog, saveTextFile } from '../lib/fileio';
+import type { MonthType, ProductInput } from '../core/types';
+import { confirmDialog, saveBinaryFile } from '../lib/fileio';
 import { Breakdown } from './components/Breakdown';
 import { IssueList } from './components/IssueList';
 import { PriceMatrix } from './components/PriceMatrix';
 import { PriceTable } from './components/PriceTable';
 import { StepHeader } from './components/StepHeader';
 import { Summary } from './components/Summary';
-import { customerLabel, fieldId, issueMessage, monthLabel } from './format';
+import { fieldId, issueMessage } from './format';
 import { type Action, type AppState, countOverrides } from './state';
 
 interface Props {
@@ -45,8 +44,11 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
 
   // product is a fresh object each render; recalculate only when its source strings change.
   const result = useMemo(
-    () => (product ? calculate(product, config, state.overrides, { smartUpdates: state.smartUpdates }) : undefined),
-    [input.cost, input.qty, maxPriceGr, config, state.overrides, state.smartUpdates],
+    () => (product ? calculate(product, config, state.overrides, {
+            smartUpdates: state.smartUpdates,
+            flexible: state.flexible,
+          }) : undefined),
+    [input.cost, input.qty, maxPriceGr, config, state.overrides, state.smartUpdates, state.flexible],
   );
   const allIssues = result ? (result.ok ? result.list.issues : result.issues) : [];
   const fieldError = (path: string, parsed: ReturnType<typeof parseMoney>, raw: string) => {
@@ -68,7 +70,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     if (value === undefined || state.editIndividually || !row) {
       dispatch({ type: 'setRowOverride', key, value });
     } else {
-      dispatch({ type: 'setOverrides', overrides: shiftOverrides(row, value, state.overrides) });
+      dispatch({ type: 'setOverrides', overrides: shiftOverrides(row, value, state.overrides, list) });
     }
   };
   const resetShift = (sale: boolean) =>
@@ -84,7 +86,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
           ? t('issues.maxPriceNonPositive')
           : undefined;
 
-  async function exportCsv() {
+  async function exportXlsx() {
     if (!list) return;
     if (!input.name.trim()) {
       setNameError(true);
@@ -96,21 +98,25 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     const stale = list.rows.filter((r) => r.stale).length;
     if (stale > 0 && !(await confirmDialog(t('export.confirmStale', { count: stale }), t('app.title')))) return;
 
-    const labels: CsvLabels = {
-      header: (c) => t(`columns.${c}`),
-      customer: (id) => customerLabel(config.customers, id, lang),
-      month: (m) => monthLabel(config, m, lang, t),
-      status: (r: PriceRow) =>
-        t(`status.${r.status}`) +
-        (r.stale ? ` (${t('status.stale')})` : '') +
-        (r.aboveMax ? ` (${t('status.aboveMax')})` : ''),
-    };
-    const csv = priceListCsv(list, labels, state.dialect === 'pl' ? POLISH_EXCEL : INTERNATIONAL);
     try {
-      const file = await saveTextFile(exportFileName(input.name, new Date(), t('export.fallbackName')), csv, {
-        name: 'CSV',
-        extensions: ['csv'],
+      // ExcelJS is large: load it only when exporting.
+      const { priceListXlsx } = await import('../export/xlsx');
+      const content = await priceListXlsx({
+        list,
+        config,
+        lang,
+        t: (key, params) => t(key, params),
+        productName: input.name.trim(),
+        date: new Date(),
+        issueText: (issue) => issueMessage(issue, lang, t),
+        calendarMonthNames: t('months.names', { returnObjects: true }) as string[],
       });
+      const file = await saveBinaryFile(
+        exportFileName(input.name, new Date(), t('export.fallbackName')),
+        content,
+        { name: 'Excel', extensions: ['xlsx'] },
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
       if (file) setExportMessage({ ok: true, text: t('export.done', { file }) });
     } catch (e) {
       setExportMessage({ ok: false, text: t('export.failed', { error: String(e) }) });
@@ -222,22 +228,16 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
               subtitle={t('steps.priceListHint')}
               right={
                 <Group gap="sm" wrap="nowrap">
-                  {state.showDetails && (
-                    <Select
-                      size="xs"
-                      aria-label={t('export.dialect')}
-                      value={state.dialect}
-                      allowDeselect={false}
-                      onChange={(v) => dispatch({ type: 'setDialect', value: v === 'intl' ? 'intl' : 'pl' })}
-                      data={[
-                        { value: 'pl', label: t('export.dialectPl') },
-                        { value: 'intl', label: t('export.dialectIntl') },
-                      ]}
-                      w={170}
+                  <Tooltip label={t('flex.tooltip')} multiline w={340} withArrow>
+                    <Switch
+                      label={t('flex.label')}
+                      checked={state.flexible}
+                      onChange={(e) => dispatch({ type: 'setFlexible', value: e.currentTarget.checked })}
+                      data-testid="toggle-flex"
                     />
-                  )}
-                  <Button onClick={exportCsv} data-testid="export-csv" radius="xl">
-                    {t('export.csv')}
+                  </Tooltip>
+                  <Button onClick={exportXlsx} data-testid="export-xlsx" radius="xl">
+                    {t('export.xlsx')}
                   </Button>
                 </Group>
               }

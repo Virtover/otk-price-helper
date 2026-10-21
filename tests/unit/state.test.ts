@@ -11,8 +11,8 @@ const base: AppState = {
   overrides: { rows: {} },
   smartUpdates: true,
   showDetails: false,
-  dialect: 'pl',
   editIndividually: false,
+  flexible: false,
   clearedOverrides: 0,
 };
 
@@ -74,7 +74,6 @@ describe('app state', () => {
     expect(reducer(base, { type: 'setLang', lang: 'en' }).lang).toBe('en');
     expect(reducer(base, { type: 'setSmartUpdates', value: false }).smartUpdates).toBe(false);
     expect(reducer(base, { type: 'setShowDetails', value: true }).showDetails).toBe(true);
-    expect(reducer(base, { type: 'setDialect', value: 'intl' }).dialect).toBe('intl');
     expect(reducer(edited, { type: 'resetOverrides' }).overrides).toEqual({ rows: {} });
   });
 });
@@ -111,7 +110,7 @@ describe('state remembered by an older app version', () => {
     vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null });
     try {
       const state = initialState();
-      expect(state.config.schemaVersion).toBe(2);
+      expect(state.config.schemaVersion).toBe(3);
       expect(state.config.vatBp).toBe(800);
       expect(isDirty(state)).toBe(false);
     } finally {

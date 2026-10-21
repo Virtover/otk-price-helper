@@ -102,7 +102,8 @@
     "profitPct": "Profit %",
     "nominalDiscount": "Discount",
     "effectiveDiscount": "Effective discount",
-    "status": "Status"
+    "status": "Status",
+    "feeUnit": "Fee / unit"
   },
   "edit": {
     "netUnit": "Unit net price",
@@ -115,7 +116,8 @@
     "shiftHint": "The change shifts all prices according to the discounts (except sale). Individually edited prices stay as they are.",
     "shiftSaleHint": "The change shifts all sale prices according to the discounts.",
     "individualHint": "Changes only this one combination. Gross and package totals are recalculated.",
-    "resetShift": "Reset to calculated prices"
+    "resetShift": "Reset to calculated prices",
+    "shiftLinkedHint": "Flexible price list: the change shifts all prices — sale and regular — according to the discounts."
   },
   "breakdown": {
     "title": "Why this price?",
@@ -151,7 +153,12 @@
     "belowFloor": "Below the minimum price {{threshold}} by this amount per unit",
     "belowSale": "Below the sale price {{threshold}} by this amount per unit",
     "saleBaseOverride": "= sale base (shifted manually)",
-    "aboveMax": "Above the maximum price {{max}} by this amount per unit"
+    "aboveMax": "Above the maximum price {{max}} by this amount per unit",
+    "feeDivisor": "÷ (1 − fee {{fee}} × (1 + VAT {{vat}}))",
+    "flexTop": "Flexible price list: highest price (no discount)",
+    "flexPosition": "Position between minimum price (0 %) and maximum price (100 %)",
+    "feeUnit": "− fee from the selling price ({{fee}} of gross)",
+    "flexSaleLinked": "Flexible price list: highest sale price = {{ratio}} of the highest price {{top}}"
   },
   "issues": {
     "title": "Messages",
@@ -191,7 +198,10 @@
     "monthNone": "Add at least one month type.",
     "monthDuplicateId": "Duplicate month type.",
     "monthLabelEmpty": "Month type needs a name in both languages.",
-    "calendarUnknown": "The calendar refers to a month type that does not exist."
+    "calendarUnknown": "The calendar refers to a month type that does not exist.",
+    "feeTooHigh": "Fees including VAT cannot take 100 % of the price.",
+    "flexActive": "Flexible price list: the full discounts would need a base price of {{base}}, but the highest price is {{max}} — prices were spread between the minimum price and {{max}}.",
+    "flexSaleActive": "Flexible price list: sale prices were spread between cost and {{max}}."
   },
   "settings": {
     "costs": "Costs and profit",
@@ -247,18 +257,17 @@
     },
     "monthsHint": "Your own names and discounts, e.g. summer and winter peak. Sale is set separately.",
     "addMonth": "Add month type",
-    "newMonth": "new month"
+    "newMonth": "new month",
+    "fees": "Fees %",
+    "feesHint": "Of the gross price: marketplace, payments"
   },
   "export": {
-    "csv": "Export CSV",
-    "dialect": "CSV format",
-    "dialectPl": "Excel PL (;)",
-    "dialectIntl": "International (,)",
     "confirmErrors": "{{count}} prices are below the minimum. Export anyway?",
     "confirmStale": "{{count}} rows were not recalculated after edits. Export anyway?",
     "done": "Saved {{file}}",
     "failed": "Could not save the file: {{error}}",
-    "fallbackName": "product"
+    "fallbackName": "product",
+    "xlsx": "Export XLSX"
   },
   "common": {
     "yes": "Yes",
@@ -279,5 +288,57 @@
   "empty": {
     "title": "Start with the product",
     "text": "Enter the purchase cost and quantity — the price list for every package, customer and month appears right away."
+  },
+  "flex": {
+    "label": "Flexible price list",
+    "tooltip": "When the full discounts do not fit under the highest price — the maximum price from step 1 or a manually lowered base price — prices are spread proportionally between the minimum price (deepest discount) and that highest price (no discount). Discounts are then smaller than configured. When the discounts fit, nothing changes.",
+    "badge": "flexible",
+    "nominal": "without flexibility: {{value}}"
+  },
+  "xlsx": {
+    "sheets": {
+      "priceList": "Price list",
+      "combinations": "All combinations",
+      "discounts": "Discounts",
+      "calculation": "Calculation",
+      "settings": "Settings",
+      "messages": "Messages"
+    },
+    "priceListTitle": "Price list",
+    "date": "Date",
+    "priceListNote": "Left table: net prices per unit, right: gross per unit. Package value = unit price × quantity — full amounts are in the \"All combinations\" sheet.",
+    "netPerUnit": "Net / unit",
+    "grossPerUnit": "Gross / unit",
+    "discountsNote": "Applied discount = 1 − price ÷ highest price (base price; in flexible mode the maximum price; in sale the sale base). It differs from the nominal one because of rounding, manual edits and the flexible mode.",
+    "cols": {
+      "grossNotDivisible": "Gross total ≠ unit × qty",
+      "multiplier": "Multiplier",
+      "edited": "Edited",
+      "stale": "Not recalculated",
+      "aboveMax": "Above max.",
+      "flexed": "Flexible",
+      "shortfall": "Short of minimum",
+      "key": "Key",
+      "tierDiscount": "Package discount",
+      "customerDiscount": "Customer discount",
+      "monthDiscount": "Month discount",
+      "nominalTotal": "Nominal total discount",
+      "applied": "Applied discount",
+      "difference": "Difference",
+      "step": "Step",
+      "value": "Value",
+      "level": "Level",
+      "message": "Message"
+    },
+    "calc": {
+      "fixedExact": "Fixed handling per unit (exact, before rounding)",
+      "feeRate": "Fee as a share of the net price (fee × (1 + VAT))"
+    },
+    "levels": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "noMessages": "No messages"
   }
 }

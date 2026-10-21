@@ -26,10 +26,12 @@ export const SALE = 'sale';
 export type MonthType = string;
 
 export interface Config {
-  schemaVersion: 2;
+  schemaVersion: 3;
   handling: { percentBp: number; fixedGr: number };
   minProfit: { percentBp: number; fixedGr: number };
   vatBp: number;
+  /** Costs proportional to the selling price (marketplace / payment fees), % of the GROSS price. */
+  fees: { percentBp: number };
   packages: PackageTier[];
   customers: CustomerType[];
   /** Regular month types in display order. */
@@ -112,6 +114,10 @@ export interface PriceRow {
   shortfall?: Rat;
   /** Net unit price exceeds the optional maximum price from the input. */
   aboveMax: boolean;
+  /** Fees taken from this unit's selling price (exact, grosze). */
+  feeUnit: Rat;
+  /** Price was spread between minimum and maximum by the flexible mode. */
+  flexed: boolean;
 }
 
 export interface Tier {
@@ -148,6 +154,18 @@ export interface PriceList {
     base: bigint;
     baseOverridden: boolean;
   };
+  /** Fee as a fraction of the NET price (fee % · (1 + VAT)) and the share the shop keeps (1 − rate). */
+  fees: { rate: Rat; keep: Rat };
+  /**
+   * Flexible mode: when the discounts cannot fit under the maximum price, regular (and/or sale)
+   * prices are spread linearly between the minimum price and the maximum price.
+   */
+  /** top / saleTop: the lower of the price limit and the base (sale base) actually used. */
+  /** saleRatio: B_sale / B without flexibility; in flexible mode saleTop = ⌈top · saleRatio⌉ (linked). */
+  flex: { requested: boolean; active: boolean; saleActive: boolean; top: bigint; saleTop: bigint; saleRatio: Rat };
+  /** Highest regular price actually used: the flexible top when flex is active, else the base price. */
+  topPrice: bigint;
+  topPriceGross: bigint;
   /** Retail, single unit, peak month profit as a fraction of purchase cost. */
   retailProfitPct: Rat;
   rows: PriceRow[];

@@ -102,7 +102,8 @@
     "profitPct": "Zysk %",
     "nominalDiscount": "Rabat",
     "effectiveDiscount": "Rabat efektywny",
-    "status": "Status"
+    "status": "Status",
+    "feeUnit": "Prowizja / szt."
   },
   "edit": {
     "netUnit": "Cena netto za sztukę",
@@ -115,7 +116,8 @@
     "shiftHint": "Zmiana przesunie wszystkie ceny zgodnie z rabatami (poza wyprzedażą). Ręcznie edytowane ceny zostają bez zmian.",
     "shiftSaleHint": "Zmiana przesunie wszystkie ceny wyprzedażowe zgodnie z rabatami.",
     "individualHint": "Zmieni tylko tę jedną kombinację. Brutto i sumy pakietu są przeliczane.",
-    "resetShift": "Przywróć wyliczone ceny"
+    "resetShift": "Przywróć wyliczone ceny",
+    "shiftLinkedHint": "Elastyczny cennik: zmiana przesunie wszystkie ceny — wyprzedażowe i zwykłe — zgodnie z rabatami."
   },
   "breakdown": {
     "title": "Skąd ta cena?",
@@ -151,7 +153,12 @@
     "belowFloor": "Poniżej ceny minimalnej {{threshold}} o tyle na sztuce",
     "belowSale": "Poniżej ceny wyprzedażowej {{threshold}} o tyle na sztuce",
     "saleBaseOverride": "= baza wyprzedaży (przesunięta ręcznie)",
-    "aboveMax": "Powyżej ceny maksymalnej {{max}} o tyle na sztuce"
+    "aboveMax": "Powyżej ceny maksymalnej {{max}} o tyle na sztuce",
+    "feeDivisor": "÷ (1 − prowizja {{fee}} × (1 + VAT {{vat}}))",
+    "flexTop": "Elastyczny cennik: najwyższa cena (bez rabatu)",
+    "flexPosition": "Położenie między ceną minimalną (0 %) a maksymalną (100 %)",
+    "feeUnit": "− prowizja od ceny sprzedaży ({{fee}} brutto)",
+    "flexSaleLinked": "Elastyczny cennik: najwyższa cena wyprzedażowa = {{ratio}} najwyższej ceny {{top}}"
   },
   "issues": {
     "title": "Komunikaty",
@@ -191,7 +198,10 @@
     "monthNone": "Dodaj co najmniej jeden rodzaj miesiąca.",
     "monthDuplicateId": "Zduplikowany rodzaj miesiąca.",
     "monthLabelEmpty": "Rodzaj miesiąca musi mieć nazwę w obu językach.",
-    "calendarUnknown": "Kalendarz wskazuje nieistniejący rodzaj miesiąca."
+    "calendarUnknown": "Kalendarz wskazuje nieistniejący rodzaj miesiąca.",
+    "feeTooHigh": "Prowizja razem z VAT nie może pochłaniać 100 % ceny.",
+    "flexActive": "Elastyczny cennik: pełne rabaty wymagałyby ceny bazowej {{base}}, a najwyższa cena to {{max}} — ceny rozłożono między ceną minimalną a {{max}}.",
+    "flexSaleActive": "Elastyczny cennik: ceny wyprzedażowe rozłożono między kosztem a {{max}}."
   },
   "settings": {
     "costs": "Koszty i zysk",
@@ -247,18 +257,17 @@
     },
     "monthsHint": "Własne nazwy i rabaty, np. szczyt letni i zimowy. Wyprzedaż jest ustawiana osobno.",
     "addMonth": "Dodaj rodzaj miesiąca",
-    "newMonth": "nowy miesiąc"
+    "newMonth": "nowy miesiąc",
+    "fees": "Prowizje %",
+    "feesHint": "Od ceny brutto: platforma, płatności"
   },
   "export": {
-    "csv": "Eksportuj CSV",
-    "dialect": "Format CSV",
-    "dialectPl": "Excel PL (;)",
-    "dialectIntl": "Międzynarodowy (,)",
     "confirmErrors": "Ceny poniżej minimum: {{count}}. Eksportować mimo to?",
     "confirmStale": "Wiersze nieprzeliczone po zmianach: {{count}}. Eksportować mimo to?",
     "done": "Zapisano {{file}}",
     "failed": "Nie udało się zapisać pliku: {{error}}",
-    "fallbackName": "produkt"
+    "fallbackName": "produkt",
+    "xlsx": "Eksportuj XLSX"
   },
   "common": {
     "yes": "Tak",
@@ -279,5 +288,57 @@
   "empty": {
     "title": "Zacznij od produktu",
     "text": "Wpisz koszt zakupu i liczbę sztuk — cennik dla wszystkich pakietów, klientów i miesięcy pojawi się od razu."
+  },
+  "flex": {
+    "label": "Elastyczny cennik",
+    "tooltip": "Gdy pełne rabaty nie mieszczą się pod najwyższą ceną — ceną maksymalną z kroku 1 albo ręcznie obniżoną ceną bazową — ceny zostaną rozłożone proporcjonalnie między ceną minimalną (najgłębszy rabat) a tą najwyższą ceną (bez rabatu). Rabaty są wtedy mniejsze niż w ustawieniach. Gdy rabaty się mieszczą, nic się nie zmienia.",
+    "badge": "elastyczny",
+    "nominal": "bez elastyczności: {{value}}"
+  },
+  "xlsx": {
+    "sheets": {
+      "priceList": "Cennik",
+      "combinations": "Wszystkie kombinacje",
+      "discounts": "Rabaty",
+      "calculation": "Obliczenia",
+      "settings": "Ustawienia",
+      "messages": "Uwagi"
+    },
+    "priceListTitle": "Cennik",
+    "date": "Data",
+    "priceListNote": "Lewa tabela: ceny netto za sztukę, prawa: brutto za sztukę. Wartość pakietu = cena za sztukę × liczba sztuk — pełne kwoty są w arkuszu „Wszystkie kombinacje”.",
+    "netPerUnit": "Netto / szt.",
+    "grossPerUnit": "Brutto / szt.",
+    "discountsNote": "Rabat zastosowany = 1 − cena ÷ najwyższa cena (cena bazowa; w trybie elastycznym cena maksymalna; w wyprzedaży baza wyprzedaży). Różni się od nominalnego przez zaokrąglenia, ręczne zmiany i tryb elastyczny.",
+    "cols": {
+      "grossNotDivisible": "Brutto razem ≠ szt. × ilość",
+      "multiplier": "Mnożnik",
+      "edited": "Edytowana",
+      "stale": "Nieprzeliczona",
+      "aboveMax": "Powyżej maks.",
+      "flexed": "Elastyczna",
+      "shortfall": "Brak do minimum",
+      "key": "Klucz",
+      "tierDiscount": "Rabat pakietowy",
+      "customerDiscount": "Rabat klienta",
+      "monthDiscount": "Rabat miesiąca",
+      "nominalTotal": "Rabat nominalny łączny",
+      "applied": "Rabat zastosowany",
+      "difference": "Różnica",
+      "step": "Krok",
+      "value": "Wartość",
+      "level": "Poziom",
+      "message": "Komunikat"
+    },
+    "calc": {
+      "fixedExact": "Stałe koszty obsługi na sztukę (dokładnie, przed zaokrągleniem)",
+      "feeRate": "Prowizja jako udział ceny netto (prowizja × (1 + VAT))"
+    },
+    "levels": {
+      "error": "Błąd",
+      "warning": "Ostrzeżenie",
+      "info": "Informacja"
+    },
+    "noMessages": "Brak uwag"
   }
 }

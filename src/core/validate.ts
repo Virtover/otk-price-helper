@@ -52,6 +52,12 @@ export function validateConfig(config: Config): Issue[] {
     ...nonNegative(config.minProfit.fixedGr, 'minProfit.fixedGr', maxMoney),
   ];
 
+  issues.push(...nonNegative(config.fees.percentBp, 'fees.percentBp', 9999));
+  // The fee is a share of the gross price; it must leave something of the net price.
+  if (isInt(config.fees.percentBp) && isInt(config.vatBp) && config.fees.percentBp * (10000 + config.vatBp) >= 10000 * 10000) {
+    issues.push({ level: 'error', code: 'feeTooHigh', path: 'fees.percentBp' });
+  }
+
   if (!isInt(config.vatBp) || config.vatBp < 0 || config.vatBp > 10000) {
     issues.push({ level: 'error', code: 'vatRange', path: 'vatBp' });
   } else if (!USUAL_VAT_BP.includes(config.vatBp)) {

@@ -56,7 +56,7 @@ function groupDigits(digits: string, sep: string): string {
 
 export interface FormatOptions {
   decimalSep: string;
-  /** Omit for no digit grouping (CSV). */
+  /** Omit for no digit grouping. */
   groupSep?: string;
   minGroupDigits?: number;
   /** Strip trailing fractional zeros ("10,00" → "10"). */

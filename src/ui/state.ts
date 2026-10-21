@@ -13,8 +13,6 @@ export interface InputText {
   maxPrice: string;
 }
 
-export type Dialect = 'pl' | 'intl';
-
 export interface AppState {
   lang: Locale;
   config: Config;
@@ -24,9 +22,10 @@ export interface AppState {
   overrides: Overrides;
   smartUpdates: boolean;
   showDetails: boolean;
-  dialect: Dialect;
   /** Price edits change only the edited combination instead of shifting all prices. */
   editIndividually: boolean;
+  /** Spread prices between minimum and maximum price when discounts cannot fit under the maximum. */
+  flexible: boolean;
   /** Number of manual edits dropped by the last input/config change (0 = no notice). */
   clearedOverrides: number;
 }
@@ -41,10 +40,10 @@ export type Action =
   | { type: 'setBaseOverride'; value?: bigint }
   | { type: 'setOverrides'; overrides: Overrides }
   | { type: 'setEditIndividually'; value: boolean }
+  | { type: 'setFlexible'; value: boolean }
   | { type: 'resetOverrides' }
   | { type: 'setSmartUpdates'; value: boolean }
   | { type: 'setShowDetails'; value: boolean }
-  | { type: 'setDialect'; value: Dialect }
   | { type: 'dismissCleared' };
 
 const STORAGE_KEY = 'otk-price-helper.state.v1';
@@ -56,8 +55,8 @@ interface Stored {
   input: InputText;
   smartUpdates: boolean;
   showDetails: boolean;
-  dialect: Dialect;
   editIndividually: boolean;
+  flexible: boolean;
 }
 
 const countOverrides = (o: Overrides) =>
@@ -99,14 +98,14 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, overrides: action.overrides };
     case 'setEditIndividually':
       return { ...state, editIndividually: action.value };
+    case 'setFlexible':
+      return { ...state, flexible: action.value };
     case 'resetOverrides':
       return { ...state, overrides: NO_OVERRIDES };
     case 'setSmartUpdates':
       return { ...state, smartUpdates: action.value };
     case 'setShowDetails':
       return { ...state, showDetails: action.value };
-    case 'setDialect':
-      return { ...state, dialect: action.value };
     case 'dismissCleared':
       return { ...state, clearedOverrides: 0 };
   }
@@ -127,8 +126,8 @@ export function initialState(): AppState {
     overrides: NO_OVERRIDES,
     smartUpdates: stored.smartUpdates ?? true,
     showDetails: stored.showDetails ?? false,
-    dialect: stored.dialect === 'intl' ? 'intl' : 'pl',
     editIndividually: stored.editIndividually ?? false,
+    flexible: stored.flexible ?? false,
     clearedOverrides: 0,
   };
 }
@@ -143,8 +142,8 @@ export function useAppState() {
       input: state.input,
       smartUpdates: state.smartUpdates,
       showDetails: state.showDetails,
-      dialect: state.dialect,
       editIndividually: state.editIndividually,
+      flexible: state.flexible,
     };
     writeStored(STORAGE_KEY, stored);
   }, [state]);

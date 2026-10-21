@@ -29,6 +29,30 @@ export async function saveTextFile(defaultName: string, content: string, filter:
   return defaultName;
 }
 
+/** Saves binary content (e.g. an .xlsx workbook). Returns the path / filename, or null when cancelled. */
+export async function saveBinaryFile(
+  defaultName: string,
+  content: Uint8Array,
+  filter: FileFilter,
+  mimeType: string,
+): Promise<string | null> {
+  if (isTauri()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    const path = await save({ defaultPath: defaultName, filters: [filter] });
+    if (!path) return null;
+    await writeFile(path, content);
+    return path;
+  }
+  const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = defaultName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return defaultName;
+}
+
 export async function openTextFile(filter: FileFilter): Promise<{ name: string; content: string } | null> {
   if (isTauri()) {
     const { open } = await import('@tauri-apps/plugin-dialog');

@@ -1,10 +1,11 @@
 import type { Config } from '../core/types';
 
 export const DEFAULT_CONFIG: Config = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   handling: { percentBp: 1000, fixedGr: 50000 },
   minProfit: { percentBp: 1000, fixedGr: 0 },
   vatBp: 2300,
+  fees: { percentBp: 0 },
   packages: [
     { qty: 50, discountBp: 200 },
     { qty: 100, discountBp: 400 },

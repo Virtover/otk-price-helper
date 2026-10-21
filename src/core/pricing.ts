@@ -69,16 +69,77 @@ export function baseForTarget(target: bigint, multiplier: Rat): bigint {
  * Overrides that move a row to the target price by shifting its base, so all
  * other rows sharing that base follow according to their discounts. Sale rows
  * shift the sale base; regular rows shift B. The row's own manual edit is dropped.
+ *
+ * With the flexible price list on (pass the current list), a base too low for the full
+ * discounts makes the prices spread; the new top is then chosen so the spread puts this
+ * row exactly on the target. Where no top can do that (the deepest row, or a top above the
+ * price limit), the edit falls back to this row only.
  */
-export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrides): Overrides {
+export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrides, list?: PriceList): Overrides {
   const { [row.key]: _dropped, ...rows } = overrides.rows;
-  const base = baseForTarget(target, row.multiplier);
-  return row.month === 'sale' ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
+  const isSale = row.month === SALE;
+  const individually = { ...overrides, rows: { ...rows, [row.key]: target } };
+  if (isSale && list?.flex.requested) return shiftLinkedSale(row, target, overrides, rows, list) ?? individually;
+  let base = baseForTarget(target, row.multiplier);
+  if (list?.flex.requested) {
+    const needed = isSale ? list.sale.baseCalculated : list.baseCalculated;
+    if (base < needed) {
+      const low = isSale ? list.sale.cost : list.floor;
+      const pos = flexPosition(isSale ? list.sale.deepMultiplier : list.deepest.multiplier, row.multiplier);
+      if (pos.n === 0n) return individually;
+      // Smallest top T with ⌈low + (T − low) · pos⌉ = target (pos ≤ 1, so every target is reachable).
+      base = floorOf(add(low, div(sub(rat(target - 1n), low), pos))) + 1n;
+      const max = list.input.maxPriceGr;
+      if (max !== undefined && base > max) return individually;
+    }
+  }
+  return isSale ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
+}
+
+/**
+ * Flexible mode, sale row: find the sale top that puts the row on the target (nominal or spread),
+ * then the regular base whose linked sale top is exactly that. Undefined = not reachable.
+ */
+function shiftLinkedSale(
+  row: PriceRow,
+  target: bigint,
+  overrides: Overrides,
+  rows: Record<string, bigint>,
+  list: PriceList,
+): Overrides | undefined {
+  let saleTop = baseForTarget(target, row.multiplier);
+  if (saleTop < list.sale.baseCalculated) {
+    const pos = flexPosition(list.sale.deepMultiplier, row.multiplier);
+    if (pos.n === 0n) return undefined;
+    saleTop = floorOf(add(list.sale.cost, div(sub(rat(target - 1n), list.sale.cost), pos))) + 1n;
+  }
+  if (gt(list.flex.saleRatio, ONE)) return undefined;
+  const base = baseForTarget(saleTop, list.flex.saleRatio);
+  const max = list.input.maxPriceGr;
+  if (max !== undefined && base > max) return undefined;
+  const { saleBase: _ignored, ...rest } = overrides;
+  return { ...rest, rows, base };
 }
 
 export interface CalculateOptions {
   /** Recompute derived columns of edited rows (default true). */
   smartUpdates?: boolean;
+  /** Spread prices between minimum and maximum price when discounts cannot fit under the maximum (default false). */
+  flexible?: boolean;
+}
+
+/**
+ * Flexible pricing: the price at nominal multiplier m placed linearly between `low`
+ * (the deepest multiplier mDeep) and `top` (no discount). Exact; caller rounds up.
+ */
+export function spreadPrice(low: Rat, top: bigint, mDeep: Rat, m: Rat): Rat {
+  if (eq(mDeep, ONE)) return rat(top);
+  return add(low, mul(sub(rat(top), low), flexPosition(mDeep, m)));
+}
+
+/** Position of multiplier m between the deepest combination (0) and no discount (1). */
+export function flexPosition(mDeep: Rat, m: Rat): Rat {
+  return eq(mDeep, ONE) ? ONE : div(sub(m, mDeep), sub(ONE, mDeep));
 }
 
 export function calculate(
@@ -88,6 +149,7 @@ export function calculate(
   options: CalculateOptions = {},
 ): PriceResult {
   const smart = options.smartUpdates ?? true;
+  const flexible = options.flexible ?? false;
   const preIssues = [...validateInput(input), ...validateConfig(config)];
   if (hasErrors(preIssues)) return { ok: false, issues: preIssues };
   const issues: Issue[] = [...preIssues];
@@ -101,9 +163,12 @@ export function calculate(
   const fixedPerUnit = ceil(fixedPerUnitExact);
   const unitCost = add(add(c, handlingPercent), rat(fixedPerUnit));
 
-  // 2. Floor F = K + c·p% + P.
+  // 2. Floor F = (K + c·p% + P) / (1 − fee·(1+VAT)): the fee is a share of the gross selling price,
+  //    so the shop keeps `keep` of every net złoty and the floor must cover cost + profit after fees.
   const minProfit = add(mul(c, fromBp(config.minProfit.percentBp)), rat(config.minProfit.fixedGr));
-  const floor = add(unitCost, minProfit);
+  const feeRate = mul(fromBp(config.fees.percentBp), vat);
+  const keep = sub(ONE, feeRate);
+  const floor = div(add(unitCost, minProfit), keep);
 
   // 3. Eligible tiers: implicit single unit + tiers not larger than the purchased quantity.
   const tiers: Tier[] = [{ qty: 1n, discountBp: 0, implicit: true }];
@@ -141,15 +206,34 @@ export function calculate(
   const baseOverridden = overrides.base !== undefined;
   const base = overrides.base ?? baseCalculated;
 
-  // 5. Sale: deepest package × customer combination priced at s·K.
-  const saleCost = mul(unitCost, fromBp(config.sale.factorBp));
+  // 5. Sale: deepest package × customer combination priced at s·K (after fees).
+  const saleCost = div(mul(unitCost, fromBp(config.sale.factorBp)), keep);
   const saleDeepMultiplier = mul(multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp));
   const saleBaseExact = div(saleCost, saleDeepMultiplier);
   const saleBaseCalculated = ceil(saleBaseExact);
   const saleBaseOverridden = overrides.saleBase !== undefined;
   const saleBase = overrides.saleBase ?? saleBaseCalculated;
 
-  // 6. Rows.
+  // 6. Flexible mode. The top price is the lower of the price limit and the base actually used
+  //    (a manually lowered base counts too). When it is below the base the full discounts need,
+  //    prices are spread between the floor and that top — if the top still allows the floor.
+  const max = input.maxPriceGr;
+  const baseUsed = smart ? base : baseCalculated;
+  const saleUsed = smart ? saleBase : saleBaseCalculated;
+  const topOf = (used: bigint) => (max !== undefined && max < used ? max : used);
+  const regularTop = topOf(baseUsed);
+  // In flexible mode sale prices are linked to regular ones: the sale top keeps the same ratio to
+  // the regular top as without flexibility (B_sale / B), so a change of one moves the other.
+  const saleRatio = div(rat(saleBaseCalculated), rat(baseCalculated));
+  // The linked sale top never goes below the sale price itself (cost × sale factor after fees).
+  const linkedSaleTop = topOf(ceil(mul(rat(regularTop), saleRatio)));
+  const saleFloor = ceil(saleCost);
+  const saleTop = flexible ? (linkedSaleTop < saleFloor ? saleFloor : linkedSaleTop) : topOf(saleUsed);
+  const canSpread = (top: bigint, needed: bigint, low: Rat) => top < needed && !lt(rat(top), low);
+  const flexActive = flexible && canSpread(regularTop, baseCalculated, floor);
+  const saleFlexActive = flexible && canSpread(saleTop, saleBaseCalculated, saleCost);
+
+  // 7. Rows.
   const rows: PriceRow[] = [];
   for (const tier of tiers) {
     for (const customer of config.customers) {
@@ -161,13 +245,19 @@ export function calculate(
         const key = rowKey(tier.qty, customer.id, month);
 
         // With smart updates off the derived columns keep their pre-edit values.
-        const refBase = smart ? (isSale ? saleBase : base) : isSale ? saleBaseCalculated : baseCalculated;
-        const calculatedNet = ceil(mul(rat(refBase), multiplier));
+        const flexed = isSale ? saleFlexActive : flexActive;
+        const saleRef = flexible ? saleTop : saleUsed;
+        const refBase = flexed ? (isSale ? saleTop : regularTop) : isSale ? saleRef : baseUsed;
+        const exactNet = flexed
+          ? spreadPrice(isSale ? saleCost : floor, refBase, isSale ? saleDeepMultiplier : deepMultiplier, multiplier)
+          : mul(rat(refBase), multiplier);
+        const calculatedNet = ceil(exactNet);
         const overrideNet = overrides.rows[key];
         const shownNet = overrideNet ?? calculatedNet;
         const derivedNet = smart ? shownNet : calculatedNet;
         const stale =
-          !smart && (overrideNet !== undefined || (isSale ? saleBaseOverridden : baseOverridden));
+          !smart &&
+          (overrideNet !== undefined || (isSale && !flexible ? saleBaseOverridden : baseOverridden));
 
         const threshold = isSale ? saleCost : floor;
         const net = rat(shownNet);
@@ -184,7 +274,8 @@ export function calculate(
         const grossUnit = roundHalf(mul(rat(derivedNet), vat));
         const netTotal = derivedNet * tier.qty;
         const grossTotal = roundHalf(mul(rat(netTotal), vat));
-        const profitUnit = sub(rat(derivedNet), unitCost);
+        const feeUnit = mul(rat(derivedNet), feeRate);
+        const profitUnit = sub(mul(rat(derivedNet), keep), unitCost);
 
         rows.push({
           key,
@@ -206,13 +297,15 @@ export function calculate(
           overridden: overrideNet !== undefined,
           stale,
           shortfall,
-          aboveMax: input.maxPriceGr !== undefined && shownNet > input.maxPriceGr,
+          aboveMax: max !== undefined && shownNet > max,
+          feeUnit,
+          flexed,
         });
       }
     }
   }
 
-  // 7. Result-level feedback.
+  // 8. Result-level feedback.
   if (gt(rat(fixedPerUnit), c)) {
     issues.push({
       level: 'warning',
@@ -232,7 +325,7 @@ export function calculate(
     issues.push({
       level: 'warning',
       code: 'saleBelowCost',
-      params: { loss: { moneyRat: sub(unitCost, saleCost) } },
+      params: { loss: { moneyRat: sub(unitCost, mul(saleCost, keep)) } },
       path: 'sale.factorBp',
     });
   }
@@ -254,6 +347,16 @@ export function calculate(
     if (above > 0) {
       issues.push({ level: 'warning', code: 'rowsAboveMax', params: { count: above, max }, path: 'input.maxPriceGr' });
     }
+  }
+  if (flexActive) {
+    issues.push({
+      level: 'info',
+      code: 'flexActive',
+      params: { base: { money: baseCalculated }, max: { money: regularTop } },
+    });
+  }
+  if (saleFlexActive) {
+    issues.push({ level: 'info', code: 'flexSaleActive', params: { max: { money: saleTop } } });
   }
   const errorRows = rows.filter((r) => r.status === 'error').length;
   if (errorRows > 0) issues.push({ level: 'error', code: 'rowsBelowFloor', params: { count: errorRows } });
@@ -283,6 +386,10 @@ export function calculate(
       base: saleBase,
       baseOverridden: saleBaseOverridden,
     },
+    fees: { rate: feeRate, keep },
+    flex: { requested: flexible, active: flexActive, saleActive: saleFlexActive, top: regularTop, saleTop, saleRatio },
+    topPrice: flexActive ? regularTop : baseUsed,
+    topPriceGross: roundHalf(mul(rat(flexActive ? regularTop : baseUsed), vat)),
     retailProfitPct: retail.profitPct,
     rows,
     issues,

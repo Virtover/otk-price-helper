@@ -1,7 +1,6 @@
 import { Badge, Group, ScrollArea, Select, Stack, Table, Text, UnstyledButton } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CSV_COLUMNS, type CsvColumn } from '../../core/csv';
 import { type Locale, formatMoney } from '../../core/money';
 import { type Rat, cmp, rat } from '../../core/rational';
 import { monthIds } from '../../core/pricing';
@@ -18,7 +17,25 @@ interface Props {
   onEdit: (key: string, value?: bigint) => void;
 }
 
-const numeric = (r: PriceRow, col: CsvColumn): Rat | undefined => {
+const COLUMNS = [
+  'qty',
+  'customer',
+  'month',
+  'netUnit',
+  'grossUnit',
+  'netTotal',
+  'grossTotal',
+  'feeUnit',
+  'profitUnit',
+  'profitTotal',
+  'profitPct',
+  'nominalDiscount',
+  'effectiveDiscount',
+  'status',
+] as const;
+type Column = (typeof COLUMNS)[number];
+
+const numeric = (r: PriceRow, col: Column): Rat | undefined => {
   switch (col) {
     case 'qty':
       return rat(r.qty);
@@ -30,6 +47,8 @@ const numeric = (r: PriceRow, col: CsvColumn): Rat | undefined => {
       return rat(r.netTotal);
     case 'grossTotal':
       return rat(r.grossTotal);
+    case 'feeUnit':
+      return r.feeUnit;
     case 'profitUnit':
       return r.profitUnit;
     case 'profitTotal':
@@ -45,12 +64,13 @@ const numeric = (r: PriceRow, col: CsvColumn): Rat | undefined => {
   }
 };
 
-/** Flat, filterable and sortable list of every combination — same rows as the CSV. */
+/** Flat, filterable and sortable list of every combination — same rows as the XLSX export. */
 export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
   const { t } = useTranslation();
   const [month, setMonth] = useState<string | null>(null);
   const [customer, setCustomer] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ col: CsvColumn; dir: 1 | -1 } | null>(null);
+  const [sort, setSort] = useState<{ col: Column; dir: 1 | -1 } | null>(null);
+  const columns = COLUMNS.filter((c) => c !== 'feeUnit' || config.fees.percentBp > 0);
 
   const shown = useMemo(() => {
     const filtered = rows.filter((r) => (!month || r.month === month) && (!customer || r.customerId === customer));
@@ -62,7 +82,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
     });
   }, [rows, month, customer, sort]);
 
-  const toggleSort = (col: CsvColumn) => {
+  const toggleSort = (col: Column) => {
     if (!numeric(rows[0]!, col)) return;
     setSort((s) => (s?.col === col ? (s.dir === 1 ? { col, dir: -1 } : null) : { col, dir: 1 }));
   };
@@ -96,7 +116,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
         <Table striped highlightOnHover stickyHeader verticalSpacing={4} fz="xs" data-testid="price-table">
           <Table.Thead>
             <Table.Tr>
-              {CSV_COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <Table.Th key={col} ta={numeric(rows[0]!, col) ? 'right' : 'left'} style={{ whiteSpace: 'nowrap' }}>
                   <UnstyledButton fz="xs" fw={700} onClick={() => toggleSort(col)}>
                     {t(`columns.${col}`)}
@@ -131,6 +151,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit }: Props) {
                 <Table.Td ta="right">{formatMoney(r.grossUnit, lang)}</Table.Td>
                 <Table.Td ta="right">{formatMoney(r.netTotal, lang)}</Table.Td>
                 <Table.Td ta="right">{formatMoney(r.grossTotal, lang)}</Table.Td>
+                {config.fees.percentBp > 0 && <Table.Td ta="right">{moneyRat(r.feeUnit, lang)}</Table.Td>}
                 <Table.Td ta="right">{moneyRat(r.profitUnit, lang)}</Table.Td>
                 <Table.Td ta="right">{moneyRat(r.profitTotal, lang)}</Table.Td>
                 <Table.Td ta="right">{pct(r.profitPct, lang)}</Table.Td>

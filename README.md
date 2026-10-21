@@ -33,7 +33,8 @@ falls below it. Full rules: [SPEC.md](SPEC.md).
 ## Layout
 
 ```
-src/core/      pricing engine, exact rational math, validation, breakdown, CSV — no UI imports
+src/core/      pricing engine, exact rational math, validation, breakdown — no UI imports
+src/export/    XLSX workbook export (ExcelJS)
 src/config/    defaults, JSON schema, load/save with version migration
 src/ui/        Calculator and Settings tabs, matrix, table, breakdown drawer
 src/i18n/      pl.json, en.json

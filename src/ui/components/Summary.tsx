@@ -64,7 +64,7 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
             {editable ? (
               <Text size="xl" component="div">
                 <EditablePrice
-                  value={list.base}
+                  value={list.topPrice}
                   overridden={list.baseOverridden}
                   lang={lang}
                   testId="edit-base"
@@ -74,7 +74,7 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
               </Text>
             ) : (
               <Text size="xl" fw={700}>
-                {money(list.base, lang)}
+                {money(list.topPrice, lang)}
               </Text>
             )}
             <Text size="xs" c="dimmed">
@@ -85,10 +85,20 @@ export function Summary({ list, config, lang, editable, onEditBase }: Props) {
                 {t('summary.edited')}
               </Badge>
             )}
+            {list.flex.active && (
+              <Badge size="xs" color="teal" variant="light" data-testid="flex-badge">
+                {t('flex.badge')}
+              </Badge>
+            )}
           </Group>
           <Text size="sm">
-            {money(list.baseGross, lang)} {t('summary.gross')}
+            {money(list.topPriceGross, lang)} {t('summary.gross')}
           </Text>
+          {list.flex.active && (
+            <Text size="xs" c="dimmed">
+              {t('flex.nominal', { value: money(list.baseCalculated, lang) })}
+            </Text>
+          )}
           {list.baseOverridden && (
             <Anchor component="button" type="button" size="xs" onClick={() => onEditBase(undefined)}>
               {t('summary.resetBase', { value: money(list.baseCalculated, lang) })}

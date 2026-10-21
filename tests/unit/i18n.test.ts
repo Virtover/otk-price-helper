@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import en from '../../src/i18n/en.json';
 import pl from '../../src/i18n/pl.json';
-import { CSV_COLUMNS } from '../../src/core/csv';
 
 function keys(obj: unknown, prefix = ''): string[] {
   if (Array.isArray(obj)) return [`${prefix}[${obj.length}]`];
@@ -39,7 +38,13 @@ describe('translations', () => {
     expect(missing).toEqual([]);
   });
 
-  it('every CSV column has a header', () => {
-    expect(CSV_COLUMNS.filter((c) => !(c in en.columns) || !(c in pl.columns))).toEqual([]);
+  it('every key used by the XLSX export is translated', () => {
+    const source = readFileSync(join(__dirname, '../../src/export/xlsx.ts'), 'utf8');
+    const pattern = /'((?:xlsx|columns|settings|summary|input|breakdown|flex|status|matrix|common|months)\.[\w.]+)'/g;
+    const used = new Set([...source.matchAll(pattern)].map((m) => m[1]!));
+    const lookup = (obj: unknown, path: string) =>
+      path.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], obj);
+    expect(used.size).toBeGreaterThan(30);
+    expect([...used].filter((k) => lookup(en, k) === undefined || lookup(pl, k) === undefined)).toEqual([]);
   });
 });

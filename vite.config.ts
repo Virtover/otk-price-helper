@@ -9,7 +9,7 @@ export default defineConfig({
   server: { port: 1420, strictPort: true },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
   // Pre-bundle at startup so the first page load never triggers a dependency re-optimisation reload.
-  optimizeDeps: { include: ['@mantine/core', '@mantine/hooks', 'i18next', 'react-i18next', 'zod'] },
+  optimizeDeps: { include: ['@mantine/core', '@mantine/hooks', 'i18next', 'react-i18next', 'zod', 'exceljs'] },
   build: { target: 'es2022', chunkSizeWarningLimit: 1000 },
   test: {
     include: ['tests/unit/**/*.test.ts'],
