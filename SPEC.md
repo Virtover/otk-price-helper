@@ -30,6 +30,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | minimalny zysk | minimum profit | `p%`, `P` | per unit, relative to `c` |
 | próg | floor | `F` | `K + c·p% + P` — lowest allowed net unit price |
 | cena bazowa | base price | `B` | net price: 1 unit, retail customer, peak month — the undiscounted list price |
+| cena detaliczna | retail price | `R_M` | net price of 1 unit for the first customer type in month type `M` — the reference for discounts shown to customers |
 | mnożnik | multiplier | `m` | `1 − discount%` |
 | pakiet | package tier | — | quantity threshold with a discount |
 | rodzaj klienta | customer type | — | retail / wholesale 1–4 |
@@ -242,6 +243,11 @@ pre-peak 1–3, sale) = **125 rows**.
   each cell shows unit price (basis) and package total; colour = status.
 - **Flat table**: all rows, sortable/filterable — same rows as the XLSX export.
 - **Summary header**: `K`, `F`, `B` net/gross, retail profit as % of `c`.
+- **Matrix view switch** "Ceny | Rabat zł | Rabat %" (remembered): cells show prices, or the discount
+  from the **retail price of the selected month** `R_M` — in PLN (`R_M − net_u`, net per unit / per package,
+  gross per unit) or in % (`1 − net_u / R_M`). A line above the matrix gives `R_M` net/gross and how it
+  differs from the base (top) price: `top − R_M` in PLN and % of the top price. A price above `R_M`
+  (manual edit) shows as `+`.
 - **Breakdown panel** ("why this price?"): click a row → waterfall
   `c → +handling % → +fixed handling → K → +min profit → F → ÷M_deep → B → ×discounts → rounding → VAT → result`.
 
@@ -269,6 +275,9 @@ pre-peak 1–3, sale) = **125 rows**.
   with a note saying why (raised to the minimum / lowered because of the maximum price). Applies to
   the editor panel, inline table edits and the base price card.
 - Unit **net** price is the editable one; gross is always derived.
+- The editor shows the row's discount from its month's retail price (PLN and %); with "edit individually"
+  also the discount after the typed change. For the retail row itself it shows how `R_M` differs from the
+  base price.
 - Manual edits are cleared (with a notice) when purchase cost, quantity or settings change —
   they refer to concrete prices that would otherwise silently become wrong.
 - Edited cell = **override**: highlighted, lockable, revertible ("reset to calculated").
@@ -320,8 +329,9 @@ percentages as % format. Default filename: `<product-name>_<YYYY-MM-DD>.xlsx`.
 | Sheet | For whom | Content |
 |---|---|---|
 | **Cennik** (Price list) | the shop owner | key facts (cost, minimum, base/top price, limit, flexible mode), then per month type a package × customer table of net unit prices with the gross table beside it; status colours, prices above the limit in orange; legend |
+| **Rabaty od ceny detalicznej** | the shop owner | the base price, then per month type: retail price `R_M` net/gross and its difference from the base price (PLN, %), a package × customer table of net discounts per unit in PLN and the same in % of `R_M`; the note says discounts are measured from the month's retail price, not from the base price |
 | **Wszystkie kombinacje** | technical | every row: quantities, prices, totals, multiplier, nominal & applied discount, fee, profit, status and flags (edited, stale, above max, flexed, shortfall), row key; frozen header, autofilter |
-| **Rabaty** (Discounts) | both | per row: package, customer and month discount, nominal total, applied discount, difference — always present, shows the compression in flexible mode |
+| **Rabaty – szczegóły** (Discounts – details) | both | per row: package, customer and month discount, nominal total, applied discount, difference — always present, shows the compression in flexible mode |
 | **Obliczenia** | technical | the calculation chain from purchase cost to base / sale base, with exact intermediate values |
 | **Ustawienia** | audit | snapshot of the settings used (costs, VAT, fees, packages, customer and month types, calendar) |
 | **Uwagi** | both | the messages shown in the app at export time |

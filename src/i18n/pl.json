@@ -64,7 +64,19 @@
     "units": "{{qty}} szt.",
     "single": "1 szt.",
     "clickHint": "Kliknij cenę, aby zobaczyć wyliczenie lub ją zmienić.",
-    "cellHint": "W komórce: netto za szt. / za cały pakiet, pod spodem brutto za szt. / za pakiet."
+    "cellHint": "W komórce: netto za szt. / za cały pakiet, pod spodem brutto za szt. / za pakiet.",
+    "view": {
+      "price": "Ceny",
+      "amount": "Rabat zł",
+      "percent": "Rabat %"
+    },
+    "cellHintAmount": "W komórce: rabat od ceny detalicznej tego miesiąca — netto za szt. / za cały pakiet, pod spodem brutto za szt.",
+    "cellHintPercent": "W komórce: rabat w % od ceny detalicznej tego miesiąca (nie od ceny bazowej), pod spodem cena netto za szt.",
+    "retailRef": "cena detaliczna",
+    "retailInfo": "Cena detaliczna – {{month}} (1 szt. · {{customer}}): {{net}} netto, {{gross}} brutto — {{relation}}.",
+    "relationBelow": "o {{amount}} ({{pct}}) taniej niż cena bazowa {{top}}",
+    "relationEqual": "równa cenie bazowej",
+    "relationAbove": "o {{amount}} ({{pct}}) drożej niż cena bazowa {{top}}"
   },
   "status": {
     "ok": "OK",
@@ -128,7 +140,10 @@
     "clampedTopMin": "Podniesiono do {{value}} — elastyczny cennik nie schodzi poniżej ceny minimalnej.",
     "clampedTopMax": "Obniżono do {{value}} — cena bazowa nie może przekroczyć ceny maksymalnej.",
     "packageTotal": "Za pakiet {{qty}} szt.: {{total}}.",
-    "clampedMaxSale": "Obniżono do {{value}} za sztukę — przy cenie maksymalnej {{max}} ceny wyprzedażowe nie przekraczają {{value}}."
+    "clampedMaxSale": "Obniżono do {{value}} za sztukę — przy cenie maksymalnej {{max}} ceny wyprzedażowe nie przekraczają {{value}}.",
+    "retailDiscount": "Rabat od ceny detalicznej ({{month}}: {{retail}}): {{amount}} ({{pct}}).",
+    "retailDiscountAfter": "Po zmianie: {{amount}} ({{pct}}).",
+    "retailSelf": "To cena detaliczna w miesiącu {{month}}, od niej liczone są rabaty w tym miesiącu — {{relation}}."
   },
   "breakdown": {
     "title": "Skąd ta cena?",
@@ -313,10 +328,11 @@
     "sheets": {
       "priceList": "Cennik",
       "combinations": "Wszystkie kombinacje",
-      "discounts": "Rabaty",
+      "discounts": "Rabaty – szczegóły",
       "calculation": "Obliczenia",
       "settings": "Ustawienia",
-      "messages": "Uwagi"
+      "messages": "Uwagi",
+      "retailDiscounts": "Rabaty od ceny detalicznej"
     },
     "priceListTitle": "Cennik",
     "date": "Data",
@@ -353,6 +369,13 @@
       "warning": "Ostrzeżenie",
       "info": "Informacja"
     },
-    "noMessages": "Brak uwag"
+    "noMessages": "Brak uwag",
+    "retailTitle": "Rabaty od ceny detalicznej",
+    "retailNote": "Rabaty liczone od ceny detalicznej w danym miesiącu (1 szt. · {{customer}}), a nie od ceny bazowej. Lewa tabela: rabat netto za sztukę w zł, prawa: rabat w % ceny detalicznej tego miesiąca. Pod nazwą miesiąca: cena detaliczna i o ile różni się od ceny bazowej.",
+    "retailNet": "Cena detaliczna netto (1 szt. · {{customer}})",
+    "retailGross": "Cena detaliczna brutto",
+    "retailBelowTop": "Taniej niż cena bazowa (netto, % ceny bazowej)",
+    "retailAmount": "Rabat netto / szt. (zł)",
+    "retailPct": "Rabat % od ceny detalicznej"
   }
 }

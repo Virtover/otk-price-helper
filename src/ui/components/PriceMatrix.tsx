@@ -1,9 +1,13 @@
 import { Badge, Box, Group, ScrollArea, SegmentedControl, Stack, Table, Text, UnstyledButton } from '@mantine/core';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoney } from '../../core/money';
 import { monthIds, rowKey } from '../../core/pricing';
+import { rat } from '../../core/rational';
+import { type MonthRetail, monthRetail, retailDiscount } from '../../core/retail';
 import type { Config, MonthType, PriceList, PriceRow } from '../../core/types';
-import { monthLabel } from '../format';
+import { amountOff, money, monthLabel, pct, pctOff } from '../format';
+import type { PriceView } from '../state';
 import { STATUS_COLOR, statusBg } from './status';
 
 interface Props {
@@ -14,29 +18,82 @@ interface Props {
   currentMonth: MonthType;
   onMonth: (m: MonthType) => void;
   onSelect: (row: PriceRow) => void;
+  view: PriceView;
+  onView: (view: PriceView) => void;
+}
+
+/** "4,51 zł (20,00 %) below the base price 22,57 zł" — how a month's retail price relates to the top price. */
+export function retailRelation(list: PriceList, retail: MonthRetail, lang: Locale, t: TFunction): string {
+  if (retail.belowTop === 0n) return t('matrix.relationEqual');
+  const above = retail.belowTop < 0n;
+  return t(above ? 'matrix.relationAbove' : 'matrix.relationBelow', {
+    amount: money(above ? -retail.belowTop : retail.belowTop, lang),
+    pct: pct(above ? rat(-retail.belowTopPct.n, retail.belowTopPct.d) : retail.belowTopPct, lang),
+    top: money(list.topPrice, lang),
+  });
 }
 
 /** Package tiers × customer types for one month type. */
-export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, onSelect }: Props) {
+export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, onSelect, view, onView }: Props) {
   const { t } = useTranslation();
   const byKey = new Map(list.rows.map((r) => [r.key, r]));
+  const retail = monthRetail(list, config, month);
+  const retailKey = rowKey(1n, config.customers[0]!.id, month);
+
+  /** Cell text in the chosen view: [main line, dimmed line]. */
+  const cellText = (row: PriceRow, implicit: boolean): [string, string] => {
+    if (view === 'price' || row.key === retailKey) {
+      const second = view === 'price' ? `${t('summary.gross')} ${formatMoney(row.grossUnit, lang)}` : t('matrix.retailRef');
+      return [
+        `${formatMoney(row.netUnit, lang)}${implicit ? '' : ` / ${formatMoney(row.netTotal, lang)}`}`,
+        view === 'price' && !implicit ? `${second} / ${formatMoney(row.grossTotal, lang)}` : second,
+      ];
+    }
+    const d = retailDiscount(retail, row.netUnit, row.grossUnit);
+    if (view === 'percent') return [pctOff(d.pct, lang), `${t('summary.net')} ${formatMoney(row.netUnit, lang)}`];
+    return [
+      `${amountOff(d.net, lang)}${implicit ? '' : ` / ${amountOff(d.net * row.qty, lang)}`}`,
+      `${t('summary.gross')} ${amountOff(d.gross!, lang)}`,
+    ];
+  };
 
   return (
     <Stack gap="sm">
-      <ScrollArea type="auto">
+      <Group justify="space-between" align="flex-start" gap="sm">
+        <ScrollArea type="auto" style={{ flex: 1, minWidth: 0 }}>
+          <SegmentedControl
+            radius="xl"
+            value={month}
+            onChange={(v) => onMonth(v as MonthType)}
+            data-testid="month-selector"
+            data={monthIds(config).map((m) => {
+              const label = monthLabel(config, m, lang, t);
+              return { value: m, label: m === currentMonth ? `${label} • ${t('months.current')}` : label };
+            })}
+          />
+        </ScrollArea>
         <SegmentedControl
           radius="xl"
-          value={month}
-          onChange={(v) => onMonth(v as MonthType)}
-          data-testid="month-selector"
-          data={monthIds(config).map((m) => {
-            const label = monthLabel(config, m, lang, t);
-            return { value: m, label: m === currentMonth ? `${label} • ${t('months.current')}` : label };
-          })}
+          size="xs"
+          value={view}
+          onChange={(v) => onView(v as PriceView)}
+          data-testid="price-view"
+          data={(['price', 'amount', 'percent'] as const).map((v) => ({ value: v, label: t(`matrix.view.${v}`) }))}
         />
-      </ScrollArea>
+      </Group>
+      {view !== 'price' && (
+        <Text size="sm" data-testid="retail-info">
+          {t('matrix.retailInfo', {
+            month: monthLabel(config, month, lang, t),
+            customer: config.customers[0]!.label[lang],
+            net: money(retail.net, lang),
+            gross: money(retail.gross, lang),
+            relation: retailRelation(list, retail, lang, t),
+          })}
+        </Text>
+      )}
       <Text size="xs" c="dimmed">
-        {t('matrix.cellHint')}
+        {t(view === 'amount' ? 'matrix.cellHintAmount' : view === 'percent' ? 'matrix.cellHintPercent' : 'matrix.cellHint')}
       </Text>
       <ScrollArea type="auto">
         <Table
@@ -65,6 +122,7 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                 </Table.Th>
                 {config.customers.map((c) => {
                   const row = byKey.get(rowKey(tier.qty, c.id, month))!;
+                  const [main, second] = cellText(row, tier.implicit);
                   return (
                     <Table.Td key={c.id} p={0} bg={statusBg(row.status)}>
                       <UnstyledButton
@@ -85,14 +143,12 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                             </Text>
                           )}
                           <Text span fw={700} inherit c={row.aboveMax ? 'orange.7' : undefined}>
-                            {formatMoney(row.netUnit, lang)}
+                            {main}
                           </Text>
-                          {!tier.implicit && ` / ${formatMoney(row.netTotal, lang)}`}
                           {row.stale && ' *'}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          {t('summary.gross')} {formatMoney(row.grossUnit, lang)}
-                          {!tier.implicit && ` / ${formatMoney(row.grossTotal, lang)}`}
+                          {second}
                         </Text>
                       </UnstyledButton>
                     </Table.Td>

@@ -46,12 +46,13 @@ const cellsOf = (ws: ExcelJS.Worksheet) => {
 };
 
 describe('xlsx export', () => {
-  it('has the six sheets in order', async () => {
+  it('has the seven sheets in order', async () => {
     const wb = await read(ctx());
     expect(wb.worksheets.map((w) => w.name)).toEqual([
       'Cennik',
+      'Rabaty od ceny detalicznej',
       'Wszystkie kombinacje',
-      'Rabaty',
+      'Rabaty – szczegóły',
       'Obliczenia',
       'Ustawienia',
       'Uwagi',
@@ -87,7 +88,7 @@ describe('xlsx export', () => {
   });
 
   it('shows configured and applied discounts', async () => {
-    const ws = (await read(ctx())).getWorksheet('Rabaty')!;
+    const ws = (await read(ctx())).getWorksheet('Rabaty – szczegóły')!;
     const rows = cellsOf(ws);
     const line = rows.find((r) => r[0] === 300 && r[1] === 'hurt 4' && r[2] === 'Przedszczyt 3')!;
     expect(line.slice(3, 7)).toEqual([0.08, 0.14, 0.3, 0.44616]);
@@ -95,11 +96,28 @@ describe('xlsx export', () => {
     expect(sale[5]).toBe('—');
   });
 
+  it('shows discounts from the retail price of each month in PLN and %', async () => {
+    const ws = (await read(ctx())).getWorksheet('Rabaty od ceny detalicznej')!;
+    const rows = cellsOf(ws);
+    expect(rows.find((r) => r[0] === 'Cena bazowa')![1]).toBe(22.57);
+    const start = rows.findIndex((r) => r[0] === 'Przedszczyt 1');
+    const section = rows.slice(start);
+    expect(section.find((r) => r[0] === 'Cena detaliczna netto (1 szt. · detaliczny)')![1]).toBe(20.32);
+    expect(section.find((r) => String(r[0]).startsWith('Taniej niż cena bazowa'))!.slice(1, 3)).toEqual([2.25, 0.09969]);
+    const line = section.find((r) => r[0] === '100 szt.')!;
+    // retail, hurt 1, hurt 2 … in PLN, then the same in % of the month's retail price
+    expect(line[3]).toBe(2.37);
+    expect(line[7]).toBe('100 szt.');
+    expect(line[10]).toBe(0.116634);
+    const single = section.find((r) => r[0] === '1 szt.')!;
+    expect([single[1], single[8]]).toEqual([0, 0]);
+  });
+
   it('marks flexed prices and the flexible mode', async () => {
     const r = calculate({ ...input(1000, 1000), maxPriceGr: 2000n }, config(), { rows: {} }, { flexible: true });
     if (!r.ok) throw new Error('failed');
     const wb = await read(ctx(r.list));
-    const discounts = cellsOf(wb.getWorksheet('Rabaty')!);
+    const discounts = cellsOf(wb.getWorksheet('Rabaty – szczegóły')!);
     expect(discounts.some((row) => row[10] === 'Tak')).toBe(true);
     const facts = cellsOf(wb.getWorksheet('Cennik')!);
     expect(facts.find((row) => row[0] === 'Elastyczny cennik')![1]).toBe('elastyczny');

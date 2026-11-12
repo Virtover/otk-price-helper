@@ -164,8 +164,9 @@ test('XLSX export requires a name and writes the workbook', async ({ page }) => 
   await wb.xlsx.readFile(await file.path());
   expect(wb.worksheets.map((w) => w.name)).toEqual([
     'Cennik',
+    'Rabaty od ceny detalicznej',
     'Wszystkie kombinacje',
-    'Rabaty',
+    'Rabaty – szczegóły',
     'Obliczenia',
     'Ustawienia',
     'Uwagi',

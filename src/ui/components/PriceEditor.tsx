@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoneyInput, parseMoney } from '../../core/money';
 import { unitForPackageTotal } from '../../core/pricing';
+import { type MonthRetail, retailDiscount } from '../../core/retail';
 import type { PriceRow } from '../../core/types';
-import { money } from '../format';
+import { money, moneyOff, pctOff } from '../format';
 
 /** Adjusts a requested unit price to the allowed range; `note` explains a change. */
 export type Constrain = (row: PriceRow, unit: bigint) => { value: bigint; note?: string };
@@ -23,6 +24,17 @@ interface Props {
   /** Flexible mode: sale and regular prices are linked. */
   linked?: boolean;
   constrain?: Constrain;
+  /** Retail price of the row's month, to show the row's discount from it. */
+  retail?: RetailContext;
+}
+
+export interface RetailContext {
+  price: MonthRetail;
+  monthName: string;
+  /** How the retail price relates to the base price (already translated). */
+  relation: string;
+  /** The row is the retail price itself (1 unit · first customer type). */
+  isRetailRow: boolean;
 }
 
 type Mode = 'unit' | 'package';
@@ -34,7 +46,8 @@ type Mode = 'unit' | 'package';
  * When the entered price is adjusted, the field shows the adjusted value and a note says why.
  */
 export function PriceEditor(props: Props) {
-  const { row, calculated, lang, onEdit, individually, onIndividually, shifted, onResetShift, linked, constrain } = props;
+  const { row, calculated, lang, onEdit, individually, onIndividually, shifted, onResetShift, linked, constrain, retail } =
+    props;
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>('unit');
   const shown = (m: Mode) => (m === 'package' ? row.netTotal : row.netUnit);
@@ -55,6 +68,13 @@ export function PriceEditor(props: Props) {
 
   const parsed = parseMoney(text);
   const changed = parsed.ok && parsed.value !== shown(mode);
+  const discountText = (unit: bigint) => {
+    const d = retailDiscount(retail!.price, unit);
+    return { amount: moneyOff(d.net, lang), pct: pctOff(d.pct, lang) };
+  };
+  // Editing individually leaves the retail price where it is, so the new discount is known before applying.
+  const typedUnit =
+    parsed.ok && parsed.value > 0n ? (mode === 'package' ? unitForPackageTotal(parsed.value, row.qty) : parsed.value) : undefined;
 
   const apply = () => {
     if (!parsed.ok) return setError(t(`parse.${parsed.error}`));
@@ -166,6 +186,20 @@ export function PriceEditor(props: Props) {
               ))}
             </Stack>
           </Alert>
+        )}
+        {retail && (
+          <Text size="xs" data-testid="price-editor-retail">
+            {retail.isRetailRow
+              ? t('edit.retailSelf', { month: retail.monthName, relation: retail.relation })
+              : t('edit.retailDiscount', {
+                  month: retail.monthName,
+                  retail: money(retail.price.net, lang),
+                  ...discountText(row.netUnit),
+                })}
+            {!retail.isRetailRow && individually && changed && typedUnit !== undefined && (
+              <> {t('edit.retailDiscountAfter', discountText(typedUnit))}</>
+            )}
+          </Text>
         )}
         <Text size="xs" c="dimmed" data-testid="price-editor-hint">
           {individually

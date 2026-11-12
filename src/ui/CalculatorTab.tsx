@@ -289,6 +289,8 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                 currentMonth={currentMonth}
                 onMonth={setMonth}
                 onSelect={(r) => setSelectedKey(r.key)}
+                view={state.priceView}
+                onView={(value) => dispatch({ type: 'setPriceView', value })}
               />
             </Stack>
             </Paper>

@@ -1,6 +1,7 @@
 /**
  * XLSX export: one workbook with
  *   1. a readable price list (per month type: package × customer, net and gross per unit),
+ *      followed by the same layout of discounts from each month's retail price (PLN and %),
  *   2. every combination with all technical columns,
  *   3. the discounts behind each price (configured vs applied),
  *   4. the calculation chain, 5. the settings used, 6. the messages shown in the app.
@@ -10,6 +11,7 @@ import ExcelJS from 'exceljs';
 import type { Locale } from '../core/money';
 import { monthDiscountBp, monthIds } from '../core/pricing';
 import { type Rat, mul, rat, roundHalf } from '../core/rational';
+import { monthRetail, retailDiscount } from '../core/retail';
 import { type Config, type Issue, type PriceList, type PriceRow, type RowStatus, SALE } from '../core/types';
 
 export type Translate = (key: string, params?: Record<string, string>) => string;
@@ -179,6 +181,90 @@ function priceListSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
   }
 
   ws.getColumn(1).width = 28;
+  for (let c = 2; c <= gap * 2; c++) ws.getColumn(c).width = 14;
+  ws.getColumn(gap).width = 3;
+  ws.getColumn(gap + 1).width = 12;
+}
+
+// ---------------------------------------------------------------- 1b. discounts from the retail price
+function retailDiscountsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
+  const { list, config, t } = ctx;
+  const ws = wb.addWorksheet(t('xlsx.sheets.retailDiscounts'), {
+    views: [{ showGridLines: false }],
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+  title(ws, t('xlsx.retailTitle'));
+  const first = config.customers[0]!.label[ctx.lang];
+  ws.addRow([t('xlsx.retailNote', { customer: first })]).font = { italic: true, color: { argb: 'FF7F7F7F' } };
+  ws.addRow([]);
+  const top = ws.addRow([t('summary.base'), pln(list.topPrice)]);
+  top.getCell(1).font = { color: { argb: 'FF595959' } };
+  top.getCell(2).font = { bold: true };
+  top.getCell(2).numFmt = MONEY;
+
+  const customers = config.customers;
+  const gap = customers.length + 2; // first column of the percent block
+  const byKey = new Map(list.rows.map((r) => [r.key, r]));
+
+  for (const month of monthIds(config)) {
+    const retail = monthRetail(list, config, month);
+    ws.addRow([]);
+    const head = ws.addRow([monthName(ctx, month)]);
+    head.font = { bold: true, size: 12 };
+    head.getCell(1).fill = solidFill(BRAND_LIGHT);
+    const facts: [string, number, string, number?][] = [
+      [t('xlsx.retailNet', { customer: first }), pln(retail.net), MONEY],
+      [t('xlsx.retailGross'), pln(retail.gross), MONEY],
+      [t('xlsx.retailBelowTop'), pln(retail.belowTop), MONEY, frac(retail.belowTopPct)],
+    ];
+    for (const [label, value, fmt, share] of facts) {
+      const r = ws.addRow([label, value, share ?? null]);
+      r.getCell(1).font = { color: { argb: 'FF595959' } };
+      r.getCell(2).font = { bold: true };
+      r.getCell(2).numFmt = fmt;
+      r.getCell(3).numFmt = PCT;
+    }
+
+    const groups: (string | null)[] = [t('xlsx.retailAmount'), ...customers.map(() => null), null, t('xlsx.retailPct')];
+    ws.addRow(groups).font = { bold: true, color: { argb: 'FF7A5A1A' } };
+    const header = ws.addRow([
+      t('matrix.package'),
+      ...customers.map((c) => c.label[ctx.lang]),
+      null,
+      t('matrix.package'),
+      ...customers.map((c) => c.label[ctx.lang]),
+    ]);
+    styleHeader(header);
+    header.getCell(gap).fill = { type: 'pattern', pattern: 'none' };
+    header.getCell(gap).border = {};
+
+    for (const tier of list.tiers) {
+      const discounts = customers.map((c) => {
+        const r = byKey.get(`${tier.qty}|${c.id}|${month}`)!;
+        return retailDiscount(retail, r.netUnit);
+      });
+      const line = ws.addRow([
+        tierName(ctx, tier.qty),
+        ...discounts.map((d) => pln(d.net)),
+        null,
+        tierName(ctx, tier.qty),
+        ...discounts.map((d) => frac(d.pct)),
+      ]);
+      line.getCell(1).font = { bold: true };
+      line.getCell(gap + 1).font = { bold: true };
+      discounts.forEach((_, i) => {
+        line.getCell(2 + i).numFmt = MONEY;
+        line.getCell(gap + 2 + i).numFmt = PCT;
+      });
+      // The reference price itself (1 unit, first customer type).
+      if (tier.implicit) {
+        line.getCell(2).fill = solidFill(BRAND_LIGHT);
+        line.getCell(gap + 2).fill = solidFill(BRAND_LIGHT);
+      }
+    }
+  }
+
+  ws.getColumn(1).width = 44;
   for (let c = 2; c <= gap * 2; c++) ws.getColumn(c).width = 14;
   ws.getColumn(gap).width = 3;
   ws.getColumn(gap + 1).width = 12;
@@ -393,6 +479,7 @@ export function buildWorkbook(ctx: XlsxContext): ExcelJS.Workbook {
   wb.creator = 'OTK Price Helper';
   wb.created = ctx.date;
   priceListSheet(wb, ctx);
+  retailDiscountsSheet(wb, ctx);
   combinationsSheet(wb, ctx);
   discountsSheet(wb, ctx);
   calculationSheet(wb, ctx);

@@ -14,6 +14,7 @@ const base: AppState = {
   editIndividually: false,
   flexible: false,
   clearedOverrides: 0,
+  priceView: 'price',
 };
 
 const edited = reducer(reducer(base, { type: 'setRowOverride', key: 'k', value: 5n }), {

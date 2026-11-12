@@ -2,9 +2,11 @@ import { Badge, Divider, Drawer, Group, Stack, Table, Text } from '@mantine/core
 import { useTranslation } from 'react-i18next';
 import { explainRow } from '../../core/explain';
 import type { Locale } from '../../core/money';
+import { monthRetail } from '../../core/retail';
 import type { Config, PriceList, PriceRow } from '../../core/types';
 import { customerLabel, formatParams, formatStepValue, monthLabel } from '../format';
 import { type Constrain, PriceEditor } from './PriceEditor';
+import { retailRelation } from './PriceMatrix';
 import { STATUS_COLOR } from './status';
 
 interface Props {
@@ -27,6 +29,7 @@ export function Breakdown(props: Props) {
   const { t } = useTranslation();
   const steps = row ? explainRow(list, row, config) : [];
   const calculated = steps.find((s) => s.key === 'netOverride')?.params?.calculated;
+  const retailPrice = row && monthRetail(list, config, row.month);
 
   return (
     <Drawer
@@ -71,6 +74,14 @@ export function Breakdown(props: Props) {
             onResetShift={() => onResetShift(row.month === 'sale' && !list.flex.requested)}
             linked={list.flex.requested}
             constrain={constrain}
+            retail={
+              retailPrice && {
+                price: retailPrice,
+                monthName: monthLabel(config, row.month, lang, t),
+                relation: retailRelation(list, retailPrice, lang, t),
+                isRetailRow: row.qty === 1n && row.customerId === config.customers[0]!.id,
+              }
+            }
           />
           <Divider />
           <Table verticalSpacing={4} fz="sm">

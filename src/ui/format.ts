@@ -21,6 +21,24 @@ export function moneyPrecise(gr: Rat, lang: Locale): string {
   return exact ? body : `≈${body}`;
 }
 
+/** A discount as a signed price change: 237 gr off → "−2,37", a surcharge → "+2,37". */
+export function amountOff(gr: bigint, lang: Locale): string {
+  if (gr === 0n) return formatMoney(0n, lang);
+  return `${gr > 0n ? '−' : '+'}${formatMoney(gr > 0n ? gr : -gr, lang)}`;
+}
+
+/** Same with the currency: "−2,37 zł". */
+export function moneyOff(gr: bigint, lang: Locale): string {
+  if (gr === 0n) return money(0n, lang);
+  return `${gr > 0n ? '−' : '+'}${money(gr > 0n ? gr : -gr, lang)}`;
+}
+
+/** A discount fraction as a signed change: 1/8 off → "−12,50 %". */
+export function pctOff(fraction: Rat, lang: Locale): string {
+  if (fraction.n === 0n) return pct(fraction, lang);
+  return `${fraction.n > 0n ? '−' : '+'}${pct(fraction.n > 0n ? fraction : rat(-fraction.n, fraction.d), lang)}`;
+}
+
 export function pct(fraction: Rat, lang: Locale): string {
   return lang === 'pl' ? `${formatPercent(fraction, lang)}${NBSP}%` : `${formatPercent(fraction, lang)}%`;
 }

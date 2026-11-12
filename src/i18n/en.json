@@ -64,7 +64,19 @@
     "units": "{{qty}} pcs",
     "single": "1 pc",
     "clickHint": "Click a price to see how it was calculated or to change it.",
-    "cellHint": "Each cell: net per unit / per whole package, below it gross per unit / per package."
+    "cellHint": "Each cell: net per unit / per whole package, below it gross per unit / per package.",
+    "view": {
+      "price": "Prices",
+      "amount": "Discount PLN",
+      "percent": "Discount %"
+    },
+    "cellHintAmount": "In a cell: discount from this month's retail price — net per unit / per whole package, gross per unit below.",
+    "cellHintPercent": "In a cell: discount in % of this month's retail price (not of the base price), net unit price below.",
+    "retailRef": "retail price",
+    "retailInfo": "Retail price – {{month}} (1 unit · {{customer}}): {{net}} net, {{gross}} gross — {{relation}}.",
+    "relationBelow": "{{amount}} ({{pct}}) below the base price {{top}}",
+    "relationEqual": "equal to the base price",
+    "relationAbove": "{{amount}} ({{pct}}) above the base price {{top}}"
   },
   "status": {
     "ok": "OK",
@@ -128,7 +140,10 @@
     "clampedTopMin": "Raised to {{value}} — the flexible price list never goes below the minimum price.",
     "clampedTopMax": "Lowered to {{value}} — the base price cannot exceed the maximum price.",
     "packageTotal": "Package of {{qty}} pcs: {{total}}.",
-    "clampedMaxSale": "Lowered to {{value}} per unit — with the maximum price {{max}} sale prices do not exceed {{value}}."
+    "clampedMaxSale": "Lowered to {{value}} per unit — with the maximum price {{max}} sale prices do not exceed {{value}}.",
+    "retailDiscount": "Discount from the retail price ({{month}}: {{retail}}): {{amount}} ({{pct}}).",
+    "retailDiscountAfter": "After the change: {{amount}} ({{pct}}).",
+    "retailSelf": "This is the retail price in {{month}}; this month's discounts are measured from it — {{relation}}."
   },
   "breakdown": {
     "title": "Why this price?",
@@ -313,10 +328,11 @@
     "sheets": {
       "priceList": "Price list",
       "combinations": "All combinations",
-      "discounts": "Discounts",
+      "discounts": "Discounts – details",
       "calculation": "Calculation",
       "settings": "Settings",
-      "messages": "Messages"
+      "messages": "Messages",
+      "retailDiscounts": "Discounts from retail price"
     },
     "priceListTitle": "Price list",
     "date": "Date",
@@ -353,6 +369,13 @@
       "warning": "Warning",
       "info": "Info"
     },
-    "noMessages": "No messages"
+    "noMessages": "No messages",
+    "retailTitle": "Discounts from the retail price",
+    "retailNote": "Discounts are measured from the retail price of each month (1 unit · {{customer}}), not from the base price. Left table: net discount per unit in PLN, right: discount in % of that month's retail price. Under each month name: the retail price and how it differs from the base price.",
+    "retailNet": "Retail price, net (1 unit · {{customer}})",
+    "retailGross": "Retail price, gross",
+    "retailBelowTop": "Below the base price (net, % of the base price)",
+    "retailAmount": "Net discount / unit (PLN)",
+    "retailPct": "Discount % of retail price"
   }
 }

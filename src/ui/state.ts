@@ -28,7 +28,12 @@ export interface AppState {
   flexible: boolean;
   /** Number of manual edits dropped by the last input/config change (0 = no notice). */
   clearedOverrides: number;
+  /** What the price matrix cells show: prices, or discounts from the month's retail price. */
+  priceView: PriceView;
 }
+
+export type PriceView = 'price' | 'amount' | 'percent';
+const PRICE_VIEWS: readonly PriceView[] = ['price', 'amount', 'percent'];
 
 export type Action =
   | { type: 'setLang'; lang: Locale }
@@ -44,6 +49,7 @@ export type Action =
   | { type: 'resetOverrides' }
   | { type: 'setSmartUpdates'; value: boolean }
   | { type: 'setShowDetails'; value: boolean }
+  | { type: 'setPriceView'; value: PriceView }
   | { type: 'dismissCleared' };
 
 const STORAGE_KEY = 'otk-price-helper.state.v1';
@@ -57,6 +63,7 @@ interface Stored {
   showDetails: boolean;
   editIndividually: boolean;
   flexible: boolean;
+  priceView: PriceView;
 }
 
 const countOverrides = (o: Overrides) =>
@@ -107,6 +114,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, smartUpdates: action.value };
     case 'setShowDetails':
       return { ...state, showDetails: action.value };
+    case 'setPriceView':
+      return { ...state, priceView: action.value };
     case 'dismissCleared':
       return { ...state, clearedOverrides: 0 };
   }
@@ -130,6 +139,7 @@ export function initialState(): AppState {
     editIndividually: stored.editIndividually ?? false,
     flexible: stored.flexible ?? false,
     clearedOverrides: 0,
+    priceView: PRICE_VIEWS.includes(stored.priceView as PriceView) ? stored.priceView! : 'price',
   };
 }
 
@@ -145,6 +155,7 @@ export function useAppState() {
       showDetails: state.showDetails,
       editIndividually: state.editIndividually,
       flexible: state.flexible,
+      priceView: state.priceView,
     };
     writeStored(STORAGE_KEY, stored);
   }, [state]);
