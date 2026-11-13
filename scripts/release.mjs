@@ -45,7 +45,7 @@ if (remoteTag) {
   console.log(`✓ ${tag} already on GitHub`);
 } else {
   if (!run('git', ['tag', '--list', tag])) run('git', ['tag', '-a', tag, '-m', `OTK Price Helper ${tag}`]);
-  run('git', ['push', 'origin', tag], { stdio: 'inherit' });
+  execFileSync('git', ['push', 'origin', tag], { stdio: 'inherit' });
   console.log(`✓ pushed ${tag}`);
 }
 
