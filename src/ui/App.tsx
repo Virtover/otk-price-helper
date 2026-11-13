@@ -11,9 +11,8 @@ import {
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { confirmDialog, isTauri } from '../lib/fileio';
 import { CalculatorTab } from './CalculatorTab';
 import { REVEAL_AMOUNTS } from './components/AmountMatrix';
 import { SettingsTab } from './SettingsTab';
@@ -29,34 +28,11 @@ export function App() {
   const { setColorScheme } = useMantineColorScheme();
   const scheme = useComputedColorScheme('light');
   const themeLabel = scheme === 'dark' ? t('app.themeLight') : t('app.themeDark');
-  const dirty = isDirty(state);
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
 
   useEffect(() => {
     void i18n.changeLanguage(state.lang);
     document.documentElement.lang = state.lang;
   }, [state.lang, i18n]);
-
-  // Ask before closing with unsaved settings.
-  useEffect(() => {
-    if (isTauri()) {
-      let unlisten: (() => void) | undefined;
-      void import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
-        unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
-          if (dirtyRef.current && !(await confirmDialog(t('settings.confirmDiscard'), t('app.title')))) {
-            event.preventDefault();
-          }
-        });
-      });
-      return () => unlisten?.();
-    }
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (dirtyRef.current) e.preventDefault();
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [t]);
 
   // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z): undo / redo price and settings changes.
   // Text fields keep their own undo of the typed text.
@@ -169,7 +145,7 @@ export function App() {
             <Tabs.Tab value="calculator">{t('app.tabs.calculator')}</Tabs.Tab>
             <Tabs.Tab value="settings">
               {t('app.tabs.settings')}
-              {dirty ? ' •' : ''}
+              {isDirty(state) ? ' •' : ''}
             </Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="calculator">

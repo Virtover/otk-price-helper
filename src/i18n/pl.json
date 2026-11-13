@@ -315,9 +315,10 @@
     "save": "Zapisz do pliku",
     "load": "Wczytaj z pliku",
     "reset": "Przywróć domyślne",
-    "unsaved": "Niezapisane zmiany",
+    "unsaved": "Niezapisane w pliku",
+    "unsavedTip": "Ustawienia są zapamiętane w aplikacji i zostaną po jej ponownym uruchomieniu. Różnią się tylko od ostatnio zapisanego lub wczytanego pliku konfiguracji — zapisz go, jeśli chcesz mieć kopię albo przenieść ustawienia na inny komputer.",
     "saved": "Zapisano",
-    "confirmDiscard": "Masz niezapisane zmiany ustawień. Odrzucić je?",
+    "confirmDiscard": "Wczytanie pliku zastąpi obecne ustawienia, których nie zapisano w pliku konfiguracji. Wczytać mimo to? (Możesz to cofnąć przez Ctrl+Z.)",
     "loaded": "Wczytano konfigurację.",
     "migrated": "Konfiguracja została przekonwertowana ze starszej wersji ({{version}}).",
     "loadError": {

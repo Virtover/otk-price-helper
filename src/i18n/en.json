@@ -315,9 +315,10 @@
     "save": "Save to file",
     "load": "Load from file",
     "reset": "Reset to defaults",
-    "unsaved": "Unsaved changes",
+    "unsaved": "Not saved to a file",
+    "unsavedTip": "Settings are remembered by the app and stay after a restart. They only differ from the configuration file last saved or loaded — save it if you want a backup or to move the settings to another computer.",
     "saved": "Saved",
-    "confirmDiscard": "You have unsaved settings changes. Discard them?",
+    "confirmDiscard": "Loading a file replaces the current settings, which are not saved in a configuration file. Load anyway? (You can undo it with Ctrl+Z.)",
     "loaded": "Configuration loaded.",
     "migrated": "Configuration was converted from an older version ({{version}}).",
     "loadError": {

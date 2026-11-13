@@ -306,9 +306,11 @@ export function SettingsTab({ state, dispatch }: Props) {
               {t('settings.file')}
             </Title>
             {dirty && (
-              <Badge color="orange" variant="light" data-testid="unsaved-badge">
-                {t('settings.unsaved')}
-              </Badge>
+              <Tooltip label={t('settings.unsavedTip')} multiline w={320} withArrow>
+                <Badge color="orange" variant="light" data-testid="unsaved-badge" style={{ cursor: 'help' }}>
+                  {t('settings.unsaved')}
+                </Badge>
+              </Tooltip>
             )}
           </Group>
           <Group gap="xs">
