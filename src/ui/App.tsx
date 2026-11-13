@@ -18,12 +18,14 @@ import { REVEAL_AMOUNTS } from './components/AmountMatrix';
 import { SettingsTab } from './SettingsTab';
 import { fieldId } from './format';
 import { isDirty, useAppState } from './state';
+import { UpdateBanner, VersionButton, useUpdater } from './updater';
 
 type Tab = 'calculator' | 'settings';
 
 export function App() {
   const { t, i18n } = useTranslation();
   const [state, dispatch, history] = useAppState();
+  const updater = useUpdater();
   const [tab, setTab] = useState<Tab>('calculator');
   const { setColorScheme } = useMantineColorScheme();
   const scheme = useComputedColorScheme('light');
@@ -79,6 +81,7 @@ export function App() {
               </div>
             </Group>
             <Group gap="xs" wrap="nowrap">
+              <VersionButton updater={updater} />
               <Tooltip label={t('app.undo')}>
                 <ActionIcon
                   variant="default"
@@ -134,6 +137,7 @@ export function App() {
         </Container>
       </header>
       <Container size="lg" py="md">
+        <UpdateBanner updater={updater} />
         <Tabs
           variant="pills"
           radius="xl"

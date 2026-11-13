@@ -6,3 +6,6 @@ test-results/
 src-tauri/target/
 src-tauri/gen/
 *.log
+
+# Update signing keys belong in the user profile (npm run signing-key), never in the repo.
+*.key

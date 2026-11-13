@@ -1,12 +1,16 @@
 /**
  * Publishes the GitHub release for the version in package.json:
- *   checks that the work is committed, on main and pushed, and that the installers of this version exist,
- *   creates and pushes the tag v<version> if it is missing, then creates the release with both installers.
- * Usage: npm run release   (needs git and the gh CLI, logged in; build first with `npm run tauri build`)
+ *   checks that the work is committed, on main and pushed, and that the signed installers of this version
+ *   exist, creates and pushes the tag v<version> if it is missing, creates the release with both installers
+ *   and finally uploads latest.json — the file installed apps read to find and verify the update.
+ *   Running it again after a failure finishes the job (existing files are replaced).
+ * Usage: npm run release   (needs git and the gh CLI, logged in; build first with `npm run build:app`)
  * Commands run without a shell, so it behaves the same in PowerShell, cmd and Git Bash.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts }).trim();
 const fail = (message) => {
@@ -16,10 +20,13 @@ const fail = (message) => {
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
 const tag = `v${version}`;
-const assets = [
-  `src-tauri/target/release/bundle/nsis/OTK Price Helper_${version}_x64-setup.exe`,
-  `src-tauri/target/release/bundle/msi/OTK Price Helper_${version}_x64_en-US.msi`,
-];
+const repo = 'Virtover/otk-price-helper';
+const setup = `src-tauri/target/release/bundle/nsis/OTK Price Helper_${version}_x64-setup.exe`;
+const msi = `src-tauri/target/release/bundle/msi/OTK Price Helper_${version}_x64_en-US.msi`;
+const signature = `${setup}.sig`;
+// Published under names without spaces, so the download URL in latest.json is predictable.
+const setupName = `OTK-Price-Helper_${version}_x64-setup.exe`;
+const msiName = `OTK-Price-Helper_${version}_x64_en-US.msi`;
 
 // The same version must be in every file that carries it.
 const tauri = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8')).version;
@@ -34,9 +41,10 @@ run('git', ['fetch', '--quiet', 'origin']);
 if (run('git', ['rev-parse', 'HEAD']) !== run('git', ['rev-parse', 'origin/main'])) {
   fail('main differs from origin/main — push (or pull) first');
 }
-for (const file of assets) {
-  if (!existsSync(file)) fail(`missing ${file} — run "npm run tauri build" first`);
+for (const file of [setup, msi]) {
+  if (!existsSync(file)) fail(`missing ${file} — run "npm run build:app" first`);
 }
+if (!existsSync(signature)) fail(`missing ${signature} — build with "npm run build:app" (it signs the update)`);
 
 const remoteTag = run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}^{}`]);
 if (remoteTag) {
@@ -49,9 +57,46 @@ if (remoteTag) {
   console.log(`✓ pushed ${tag}`);
 }
 
-execFileSync(
-  'gh',
-  ['release', 'create', tag, '--verify-tag', '--title', `OTK Price Helper ${tag}`, '--generate-notes', ...assets],
-  { stdio: 'inherit' },
-);
-console.log(`✓ released ${tag}`);
+const staging = mkdtempSync(join(tmpdir(), 'otk-release-'));
+const staged = (from, name) => {
+  copyFileSync(from, join(staging, name));
+  return join(staging, name);
+};
+const assets = [staged(setup, setupName), staged(msi, msiName)];
+
+let exists = true;
+try {
+  execFileSync('gh', ['release', 'view', tag], { stdio: 'ignore' });
+} catch {
+  exists = false;
+}
+if (exists) {
+  execFileSync('gh', ['release', 'upload', tag, '--clobber', ...assets], { stdio: 'inherit' });
+  console.log(`✓ ${tag} already released — installers uploaded again`);
+} else {
+  execFileSync(
+    'gh',
+    ['release', 'create', tag, '--verify-tag', '--title', `OTK Price Helper ${tag}`, '--generate-notes', ...assets],
+    { stdio: 'inherit' },
+  );
+  console.log(`✓ released ${tag}`);
+}
+
+// Update manifest: installed apps read …/releases/latest/download/latest.json, compare the version,
+// download the setup and check it against this signature (made with the private key at build time).
+const notes = run('gh', ['release', 'view', tag, '--json', 'body', '-q', '.body']);
+const manifest = {
+  version,
+  notes,
+  pub_date: new Date().toISOString(),
+  platforms: {
+    'windows-x86_64': {
+      signature: readFileSync(signature, 'utf8').trim(),
+      url: `https://github.com/${repo}/releases/download/${tag}/${setupName}`,
+    },
+  },
+};
+const manifestPath = join(staging, 'latest.json');
+writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+execFileSync('gh', ['release', 'upload', tag, '--clobber', manifestPath], { stdio: 'inherit' });
+console.log('✓ uploaded latest.json — installed apps will offer this version');

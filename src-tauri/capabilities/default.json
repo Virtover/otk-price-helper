@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: native dialogs and reading/writing files the user picked in them, showing a saved file in its folder.",
+  "description": "Main window: native dialogs and reading/writing files the user picked in them, showing a saved file in its folder, checking for and installing signed updates.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -12,6 +12,12 @@
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-write-file",
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    "updater:default",
+    "process:allow-restart",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/Virtover/otk-price-helper/*" }]
+    }
   ]
 }

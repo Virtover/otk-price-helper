@@ -449,5 +449,20 @@
     "all": "every price",
     "one": "this combination only",
     "esc": "Esc: cancel"
+  },
+  "update": {
+    "check": "Check for updates",
+    "checking": "Checking…",
+    "available": "New version {{version}} is available",
+    "current": "(you have {{version}})",
+    "whatsNew": "What's new",
+    "install": "Update now",
+    "later": "Later",
+    "downloading": "Downloading version {{version}}…",
+    "installing": "Installing version {{version}} — the app will restart in a moment. Your settings stay.",
+    "upToDate": "You have the latest version ({{version}}).",
+    "checkFailed": "Could not check for updates.",
+    "installFailed": "Could not install the update.",
+    "manual": "Download manually"
   }
 }

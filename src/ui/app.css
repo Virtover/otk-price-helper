@@ -287,3 +287,26 @@ body.scrubbing * {
 :root[data-mantine-color-scheme='dark'] .amount-actual-note {
   color: var(--mantine-color-teal-4);
 }
+
+/* In-app update banner and the version label in the header. */
+.update-banner {
+  border-color: var(--mantine-color-brand-4) !important;
+  background: color-mix(in srgb, var(--mantine-color-brand-1) 55%, var(--mantine-color-body));
+}
+:root[data-mantine-color-scheme='dark'] .update-banner {
+  background: color-mix(in srgb, rgba(214, 161, 66, 0.14) 100%, var(--mantine-color-dark-7));
+}
+.update-banner-error {
+  border-color: var(--mantine-color-red-4) !important;
+  background: var(--mantine-color-red-light);
+}
+:root[data-mantine-color-scheme='dark'] .update-banner-error {
+  background: var(--mantine-color-red-light);
+}
+.version-button {
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.version-button:hover {
+  background: var(--mantine-color-default-hover);
+}

@@ -466,6 +466,7 @@ v3 → `discountMode: "percent"`.
 | Unit / property tests | Vitest + fast-check |
 | E2E | Playwright (a few smoke flows) |
 | Packaging | Tauri bundler → Windows `.msi` / `.exe` |
+| Updates | Tauri `updater` + `process` plugins; signed NSIS setup, manifest `latest.json` on the latest GitHub release |
 
 ```
 src/core/       rational, money, pricing engine, validation, breakdown   (no UI imports)
@@ -477,6 +478,17 @@ tests/          unit, property, e2e
 ```
 
 ---
+
+### 13.1 In-app updates (desktop)
+
+- Check shortly after start (3 s) and on a click on the version label in the header; the automatic check
+  is silent on failure, a manual one reports "up to date" or the error with a link to download by hand.
+- A newer version shows a banner under the header: version, current version, "What's new" (opens the
+  GitHub release in the browser), "Update now", "Later" (hidden until the next start or manual check).
+- Update now: download with progress → signature check against the public key in `tauri.conf.json` →
+  passive NSIS install → restart. Settings and app state are kept (stored outside the installation).
+- The private signing key never enters the repo (`npm run signing-key`); release builds are signed by
+  `npm run build:app`, and `npm run release` publishes `latest.json` after the installers.
 
 ## 14. Testing
 
@@ -537,4 +549,4 @@ Note the anchor lands at 12.51, not 12.50 — the 1 gr is the cost of guaranteed
 ## 17. Out of scope (v1)
 
 Multiple products / batch import, marketplace & payment fees, psychological rounding (x.99),
-demand-based optimisation, cloud sync, auto-update.
+demand-based optimisation, cloud sync.

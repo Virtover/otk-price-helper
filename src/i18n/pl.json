@@ -449,5 +449,20 @@
     "all": "wszystkie ceny",
     "one": "tylko ta kombinacja",
     "esc": "Esc — anuluj"
+  },
+  "update": {
+    "check": "Sprawdź aktualizacje",
+    "checking": "Sprawdzanie…",
+    "available": "Dostępna nowa wersja {{version}}",
+    "current": "(masz {{version}})",
+    "whatsNew": "Co nowego",
+    "install": "Zaktualizuj teraz",
+    "later": "Później",
+    "downloading": "Pobieranie wersji {{version}}…",
+    "installing": "Instalowanie wersji {{version}} — aplikacja za chwilę uruchomi się ponownie. Twoje ustawienia zostaną.",
+    "upToDate": "Masz najnowszą wersję ({{version}}).",
+    "checkFailed": "Nie udało się sprawdzić aktualizacji.",
+    "installFailed": "Nie udało się zainstalować aktualizacji.",
+    "manual": "Pobierz ręcznie"
   }
 }
