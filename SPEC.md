@@ -486,7 +486,9 @@ tests/          unit, property, e2e
 - A newer version shows a banner under the header: version, current version, "What's new" (opens the
   GitHub release in the browser), "Update now", "Later" (hidden until the next start or manual check).
 - Update now: download with progress → signature check against the public key in `tauri.conf.json` →
-  passive NSIS install → restart. Settings and app state are kept (stored outside the installation).
+  passive install with the installer kind the app was installed with (`latest.json` has `-nsis` and `-msi`
+  entries, so an `.msi` installation is upgraded in place, never uninstalled first) → restart. Settings
+  and app state are kept (stored outside the installation).
 - The private signing key never enters the repo (`npm run signing-key`); release builds are signed by
   `npm run build:app`, and `npm run release` publishes `latest.json` after the installers.
 

@@ -72,7 +72,8 @@ On start (after 3 s) and when the version label in the header is clicked, the de
 `https://github.com/Virtover/otk-price-helper/releases/latest/download/latest.json`. A newer version is
 offered in a banner ("Zaktualizuj teraz" / "Później"); the update downloads with progress, its signature
 is checked against the public key in `tauri.conf.json`, the installer runs in passive mode and the app
-restarts. Settings are kept. Offline, the automatic check stays silent. The latest **non-prerelease**
+restarts. Each installation updates with its own kind of installer — `.exe` installs get the setup, `.msi`
+installs get the `.msi` (`latest.json` has an entry for each), so no uninstall prompt appears midway. Settings are kept. Offline, the automatic check stays silent. The latest **non-prerelease**
 release counts, so mark a release as pre-release on GitHub to hold it back from users. 0.5.0 and older
 have no updater — install 0.6.0 by hand once.
 

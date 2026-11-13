@@ -23,7 +23,6 @@ const tag = `v${version}`;
 const repo = 'Virtover/otk-price-helper';
 const setup = `src-tauri/target/release/bundle/nsis/OTK Price Helper_${version}_x64-setup.exe`;
 const msi = `src-tauri/target/release/bundle/msi/OTK Price Helper_${version}_x64_en-US.msi`;
-const signature = `${setup}.sig`;
 // Published under names without spaces, so the download URL in latest.json is predictable.
 const setupName = `OTK-Price-Helper_${version}_x64-setup.exe`;
 const msiName = `OTK-Price-Helper_${version}_x64_en-US.msi`;
@@ -44,7 +43,9 @@ if (run('git', ['rev-parse', 'HEAD']) !== run('git', ['rev-parse', 'origin/main'
 for (const file of [setup, msi]) {
   if (!existsSync(file)) fail(`missing ${file} — run "npm run build:app" first`);
 }
-if (!existsSync(signature)) fail(`missing ${signature} — build with "npm run build:app" (it signs the update)`);
+for (const file of [setup, msi]) {
+  if (!existsSync(`${file}.sig`)) fail(`missing ${file}.sig — build with "npm run build:app" (it signs the update)`);
+}
 
 const remoteTag = run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}^{}`]);
 if (remoteTag) {
@@ -83,17 +84,24 @@ if (exists) {
 }
 
 // Update manifest: installed apps read …/releases/latest/download/latest.json, compare the version,
-// download the setup and check it against this signature (made with the private key at build time).
+// download their installer and check it against its signature (made with the private key at build time).
+// Each installation updates with its own installer kind (the app knows how it was installed and looks up
+// `windows-x86_64-msi` / `-nsis` first): an .msi installation fed the setup .exe would first have to be
+// uninstalled, and Windows asks "Are you sure you want to uninstall this product?" in the middle of updating.
+const entry = (file, name) => ({
+  signature: readFileSync(`${file}.sig`, 'utf8').trim(),
+  url: `https://github.com/${repo}/releases/download/${tag}/${name}`,
+});
 const notes = run('gh', ['release', 'view', tag, '--json', 'body', '-q', '.body']);
 const manifest = {
   version,
   notes,
   pub_date: new Date().toISOString(),
   platforms: {
-    'windows-x86_64': {
-      signature: readFileSync(signature, 'utf8').trim(),
-      url: `https://github.com/${repo}/releases/download/${tag}/${setupName}`,
-    },
+    'windows-x86_64-nsis': entry(setup, setupName),
+    'windows-x86_64-msi': entry(msi, msiName),
+    // Fallback for an app that does not know its installer kind.
+    'windows-x86_64': entry(setup, setupName),
   },
 };
 const manifestPath = join(staging, 'latest.json');
