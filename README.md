@@ -71,7 +71,7 @@ src/config/    defaults, JSON schema, load/save with version migration
 src/ui/        Calculator and Settings tabs, matrix, table, breakdown drawer
 src/i18n/      pl.json, en.json
 src/lib/       file dialogs (Tauri / browser fallback), storage
-src-tauri/     desktop shell (window, dialog + fs plugins only)
+src-tauri/     desktop shell (window, dialog, fs and opener plugins only)
 scripts/       release.mjs (npm run release)
 tests/unit/    Vitest; tests/e2e/ Playwright
 ```

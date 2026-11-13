@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculate } from '../../src/core/pricing';
-import { rat } from '../../src/core/rational';
+import { div, rat } from '../../src/core/rational';
 import { codes, config, input, list, row } from './helpers';
 
 describe('golden example (SPEC §16)', () => {
@@ -60,6 +60,12 @@ describe('golden example (SPEC §16)', () => {
   it('reports high retail profit as info only', () => {
     expect(codes(l.issues)).toEqual(['retailProfitHigh']);
     expect(l.retailProfitPct).toEqual(rat(1107, 1000));
+  });
+
+  it('margin is profit per unit over net unit price', () => {
+    for (const r of l.rows) expect(r.marginPct).toEqual(div(r.profitUnit, rat(r.netUnit)));
+    expect(row(l, '1|retail|peak').marginPct).toEqual(rat(1107, 2257));
+    expect(l.retailMarginPct).toEqual(rat(1107, 2257));
   });
 });
 

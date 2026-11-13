@@ -29,6 +29,20 @@ export async function saveTextFile(defaultName: string, content: string, filter:
   return defaultName;
 }
 
+/**
+ * Opens the folder of a file the user just saved, with the file selected (Explorer on Windows).
+ * Only in Tauri; never throws — a failure here must not turn a successful save into an error.
+ */
+export async function revealInFolder(path: string): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    await revealItemInDir(path);
+  } catch (e) {
+    console.warn('could not open the folder', e);
+  }
+}
+
 /** Saves binary content (e.g. an .xlsx workbook). Returns the path / filename, or null when cancelled. */
 export async function saveBinaryFile(
   defaultName: string,

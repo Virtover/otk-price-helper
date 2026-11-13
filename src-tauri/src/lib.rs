@@ -1,5 +1,5 @@
 // All pricing logic lives in the TypeScript core; the Rust side only hosts the
-// window and the native file dialogs / file access.
+// window, the native file dialogs / file access and showing a saved file in its folder.
 use tauri::{Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 /// Free space kept around the window on a screen too small for its configured size (logical px).
@@ -38,6 +38,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // The window starts hidden (tauri.conf.json) so it never shows off screen first.
             if let Some(window) = app.get_webview_window("main") {

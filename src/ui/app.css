@@ -205,3 +205,85 @@ body.scrubbing * {
   background: #f1ede6;
   color: #1f1d1a;
 }
+
+/* Summary cards: label with an info mark opens a calculation tooltip. */
+.stat-tip {
+  cursor: help;
+  border-radius: 4px;
+  outline: none;
+}
+.stat-tip:focus-visible {
+  box-shadow: 0 0 0 2px var(--mantine-color-brand-4);
+}
+.stat-tip .info-mark {
+  opacity: 0.7;
+  transition: opacity 120ms;
+}
+.stat-tip:hover .info-mark,
+.stat-tip:focus-visible .info-mark {
+  opacity: 1;
+}
+
+/* Tooltip calculation: labels left, amounts right, the total separated by a rule. */
+.calc-lines {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--mantine-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.calc-lines td {
+  padding: 1px 0;
+  vertical-align: baseline;
+}
+.calc-lines td:last-child {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 16px;
+}
+.calc-lines .calc-total td {
+  border-top: 1px solid var(--tooltip-rule);
+  padding-top: 4px;
+  font-weight: 700;
+}
+.calc-divider {
+  border-color: var(--tooltip-rule) !important;
+}
+
+/* Tooltips themed like cards: light in light mode, dark in dark mode. */
+.app-tooltip {
+  --tooltip-rule: var(--mantine-color-gray-3);
+  background: var(--mantine-color-white);
+  color: var(--mantine-color-dark-7);
+  border: 1px solid var(--mantine-color-gray-3);
+  box-shadow: 0 6px 20px rgba(40, 30, 20, 0.12), 0 1px 3px rgba(40, 30, 20, 0.08);
+}
+.app-tooltip-arrow {
+  background: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-gray-3);
+}
+:root[data-mantine-color-scheme='dark'] .app-tooltip {
+  --tooltip-rule: var(--mantine-color-dark-4);
+  background: var(--mantine-color-dark-6);
+  color: var(--mantine-color-dark-0);
+  border-color: var(--mantine-color-dark-4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+:root[data-mantine-color-scheme='dark'] .app-tooltip-arrow {
+  background: var(--mantine-color-dark-6);
+  border-color: var(--mantine-color-dark-4);
+}
+
+/* Amount matrix in flexible mode: the actual (compressed) reduction under an amount. */
+.amount-actual {
+  color: var(--mantine-color-teal-8);
+  white-space: nowrap;
+}
+:root[data-mantine-color-scheme='dark'] .amount-actual {
+  color: var(--mantine-color-teal-4);
+}
+.amount-actual-note {
+  color: var(--mantine-color-teal-8);
+}
+:root[data-mantine-color-scheme='dark'] .amount-actual-note {
+  color: var(--mantine-color-teal-4);
+}

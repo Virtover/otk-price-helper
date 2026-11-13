@@ -462,6 +462,7 @@ export function calculate(
           profitUnit,
           profitTotal: mul(profitUnit, rat(tier.qty)),
           profitPct: div(profitUnit, c),
+          marginPct: derivedNet > 0n ? div(profitUnit, rat(derivedNet)) : rat(0n),
           nominalDiscount: sub(ONE, multiplier),
           effectiveDiscount: sub(ONE, div(rat(derivedNet), rat(refBase))),
           status,
@@ -590,6 +591,8 @@ export function calculate(
     topPrice: flexActive ? regularTop : baseUsed,
     topPriceGross: roundHalf(mul(rat(flexActive ? regularTop : baseUsed), vat)),
     retailProfitPct: retail.profitPct,
+    retailMarginPct: retail.marginPct,
+    retailKey: retail.key,
     rows,
     issues,
   };

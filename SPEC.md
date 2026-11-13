@@ -191,7 +191,7 @@ by their package and customer multipliers. Month discounts do not apply in sale.
    `B_sale = ⌈S / (m(largest tier) · m(largest customer))⌉`, then steps 6–8 with `m_month = 1`
    and `B_sale` instead of `B`.
 10. **Profit** (exact, using exact net): `fee_u = net_u · f·(1+VAT)`, `profit_u = net_u − fee_u − K`,
-    `profit_% = profit_u / c`, `profit_total = profit_u · q`.
+    `markup = profit_u / c`, `margin = profit_u / net_u`, `profit_total = profit_u · q`.
 11. **Applied (effective) discount** vs the highest price (`B`, `B_sale`, or the maximum price in
     flexible mode): `1 − net_u / top` — differs from nominal by rounding, edits and flexible mode.
 12. **Flexible price list** (toggle "Elastyczny cennik", default off, remembered). The top price
@@ -245,7 +245,10 @@ Month types stay %, package × customer discounts become a matrix of net PLN amo
   the amounts stay.
 - **Flexible price list**: each row's position is its price at the calculated base divided by that base
   (its "multiplier"), and prices are spread between `F` and the top exactly as in §5.2 step 12 — the
-  amounts shrink proportionally.
+  amounts shrink proportionally. While that changes anything, the amount matrix shows under each amount the actual reduction
+  from the month's retail price (`R_M − net_u`): one value for the regular months (a range if they differ
+  by more than 1 gr) and the sale separately; the tooltip lists every month type. Cells where nothing
+  differs show nothing extra.
 
 Defaults, `c = 10.00`, `N = 1000`: from `B = 22.57` the iteration settles at `B = 25.43`:
 `R_p = 25.43`, `A(300, hurt 4) = ⌊25.43 · 0.2088⌋ = 5.30`, `B = ⌈(12.50 + 5.30) / 0.70⌉ = 25.43`;
@@ -271,7 +274,8 @@ pre-peak 1–3, sale) = **125 rows**.
 | unit net, unit gross | net is the divisible basis |
 | package total net, package total gross | |
 | profit per unit, profit total | |
-| profit % (of `c`) | |
+| markup (profit ÷ `c`) | |
+| margin (profit ÷ net unit price) | |
 | nominal discount, effective discount | |
 | status | OK · anchor · sale · override · error |
 
@@ -280,7 +284,7 @@ pre-peak 1–3, sale) = **125 rows**.
 - **Matrix** (default): rows = package tiers, columns = customer types, selector = month type;
   each cell shows unit price (basis) and package total; colour = status.
 - **Flat table**: all rows, sortable/filterable — same rows as the XLSX export.
-- **Summary header**: `K`, `F`, `B` net/gross, retail profit as % of `c`.
+- **Summary header**: `K`, `F`, `B` net/gross, markup (profit ÷ purchase cost `c`) and margin (profit ÷ net price), both of the base price row; every summary card has an info tooltip with the calculation. Tooltips follow the colour scheme.
 - **Matrix view switch** "Ceny | Rabat zł | Rabat %" (remembered): cells show prices, or the discount
   from the **retail price of the selected month** `R_M` — in PLN (`R_M − net_u`, net per unit / per package,
   gross per unit) or in % (`1 − net_u / R_M`). A line above the matrix gives `R_M` net/gross and how it
@@ -354,7 +358,7 @@ pre-peak 1–3, sale) = **125 rows**.
 | No eligible tier besides 1 unit | info | "No package discounts apply for N = …" |
 | `⌈H/N⌉ > c` (fixed handling dominates, small N) | warning | "Fixed handling is X % of unit cost" |
 | Rounding of `H/N` added > 0 | info (breakdown only) | "Rounded up by 0.00X PLN to avoid loss" |
-| Retail profit (1 unit, first customer, peak) > 100 % of `c` | info | "Retail profit is X % of purchase cost because the deepest discounts must still reach the minimum profit" |
+| Retail markup (1 unit, first customer, peak) > 100 % of `c` | info | "The markup at the base price is X % because the deepest discounts must still reach the minimum profit" |
 | Very large values (unit price > 10 000 000 PLN) | error | "Value out of supported range" |
 | Config file invalid / newer version | error | lists offending keys; current config unchanged |
 | Config file older version | info | migrated automatically |
@@ -380,6 +384,7 @@ Every error/warning must point to **what** to change (field link/focus), not jus
 
 One workbook, labels in the UI language, money as numbers with currency format (Excel can sum/sort),
 percentages as % format. Default filename: `<product-name>_<YYYY-MM-DD>.xlsx`.
+After saving, the desktop app opens the folder with the file selected (Explorer); the browser build only downloads.
 
 | Sheet | For whom | Content |
 |---|---|---|
@@ -510,7 +515,7 @@ Input: `c = 10.00 PLN`, `N = 1000`.
 | min profit | 10.00 · 10 % + 0 = 1.00 |
 | `F` | 12.50 |
 | `M_deep` | 0.92 · 0.86 · 0.70 = 0.55384 |
-| `B` | ⌈12.50 / 0.55384⌉ = ⌈22.5697…⌉ = **22.57 net** (retail profit 110.7 % of `c`) |
+| `B` | ⌈12.50 / 0.55384⌉ = ⌈22.5697…⌉ = **22.57 net** (markup 110.7 % of `c`, margin 49.05 % of net) |
 
 Selected rows:
 

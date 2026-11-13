@@ -237,3 +237,26 @@ describe('amount mode with the flexible price list', () => {
     );
   });
 });
+
+describe('actual amounts shown under the amount matrix', () => {
+  it('are listed only while the flexible price list changes them', async () => {
+    const { actualAmounts } = await import('../../src/ui/components/AmountMatrix');
+    const cfg = amountConfig();
+    const plain = amountList({}, {}, input(1000, 1000), cfg);
+    expect(actualAmounts({ ...plain, amounts: plain.amounts! }, cfg).size).toBe(0);
+
+    const flex = amountList({}, { flexible: true, maxPriceGr: 2000n }, input(1000, 1000), cfg);
+    expect(flex.flex.active).toBe(true);
+    const actual = actualAmounts({ ...flex, amounts: flex.amounts! }, cfg);
+    expect(actual.size).toBeGreaterThan(0);
+    for (const [key, perMonth] of actual) {
+      const [qty, customer] = key.split('|');
+      // Each value is the month's retail price minus the cell's price, and smaller than the amount.
+      for (const [month, value] of perMonth) {
+        expect(value).toBe(row(flex, `1|retail|${month}`).netUnit - row(flex, `${qty}|${customer}|${month}`).netUnit);
+      }
+      expect(perMonth.some(([, v]) => v < flex.amounts!.cells[key]!.gr)).toBe(true);
+    }
+    expect(actual.has('1|retail')).toBe(false);
+  });
+});

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: native dialogs and reading/writing files the user picked in them.",
+  "description": "Main window: native dialogs and reading/writing files the user picked in them, showing a saved file in its folder.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -11,6 +11,7 @@
     "dialog:allow-ask",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
-    "fs:allow-write-file"
+    "fs:allow-write-file",
+    "opener:allow-reveal-item-in-dir"
   ]
 }

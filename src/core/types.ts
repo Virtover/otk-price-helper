@@ -120,8 +120,10 @@ export interface PriceRow {
   grossNotDivisible: boolean;
   profitUnit: Rat;
   profitTotal: Rat;
-  /** Profit per unit as a fraction of purchase cost. */
+  /** Markup: profit per unit as a fraction of purchase cost. */
   profitPct: Rat;
+  /** Margin: profit per unit as a fraction of the net price. */
+  marginPct: Rat;
   nominalDiscount: Rat;
   effectiveDiscount: Rat;
   status: RowStatus;
@@ -219,8 +221,12 @@ export interface PriceList {
   /** Highest regular price actually used: the flexible top when flex is active, else the base price. */
   topPrice: bigint;
   topPriceGross: bigint;
-  /** Retail, single unit, peak month profit as a fraction of purchase cost. */
+  /** Markup of the base price row (1 unit · first customer · first month): profit / purchase cost. */
   retailProfitPct: Rat;
+  /** Margin of the same row: profit / net price. */
+  retailMarginPct: Rat;
+  /** Key of that row. */
+  retailKey: string;
   rows: PriceRow[];
   issues: Issue[];
 }

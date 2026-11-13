@@ -291,6 +291,7 @@ function combinationsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
     { key: 'columns.profitUnit', width: 12, fmt: MONEY, value: (r) => plnRat(r.profitUnit) },
     { key: 'columns.profitTotal', width: 14, fmt: MONEY, value: (r) => plnRat(r.profitTotal) },
     { key: 'columns.profitPct', width: 10, fmt: PCT, value: (r) => frac(r.profitPct) },
+    { key: 'columns.marginPct', width: 10, fmt: PCT, value: (r) => frac(r.marginPct) },
     { key: 'columns.status', width: 14, value: (r) => statusText(ctx, r) },
     { key: 'xlsx.cols.edited', width: 10, value: (r) => yesNo(ctx, r.overridden) },
     { key: 'xlsx.cols.stale', width: 13, value: (r) => yesNo(ctx, r.stale) },
@@ -424,7 +425,8 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
           [t('breakdown.saleBaseExact'), plnPrecise(list.sale.baseExact), MONEY_PRECISE],
         ]) as [string, number, string][]),
     [t(list.sale.baseOverridden ? 'breakdown.saleBaseOverride' : 'breakdown.saleBase'), pln(list.sale.base), MONEY],
-    [t('summary.retailProfit'), frac(list.retailProfitPct), PCT],
+    [t('summary.markup'), frac(list.retailProfitPct), PCT],
+    [t('summary.margin'), frac(list.retailMarginPct), PCT],
   );
   for (const [label, value, fmt] of steps) {
     const r = ws.addRow([label, value]);

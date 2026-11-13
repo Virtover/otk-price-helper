@@ -195,7 +195,7 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
   steps.push({
     key: 'profitUnit',
     value: { moneyRat: row.profitUnit },
-    params: { pct: { pct: row.profitPct } },
+    params: { pct: { pct: row.profitPct }, margin: { pct: row.marginPct } },
   });
   if (row.aboveMax && list.input.maxPriceGr !== undefined) {
     steps.push({

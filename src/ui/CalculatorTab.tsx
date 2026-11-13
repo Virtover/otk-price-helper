@@ -6,7 +6,7 @@ import { parseInteger, parseMoney } from '../core/money';
 import { calculate, clampToFlex, monthIds, shiftOverrides } from '../core/pricing';
 import { ceil } from '../core/rational';
 import type { MonthType, Overrides, PriceRow, ProductInput } from '../core/types';
-import { confirmDialog, saveBinaryFile } from '../lib/fileio';
+import { confirmDialog, revealInFolder, saveBinaryFile } from '../lib/fileio';
 import { AmountMatrix } from './components/AmountMatrix';
 import { Breakdown } from './components/Breakdown';
 import { IssueList } from './components/IssueList';
@@ -168,7 +168,10 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
         { name: 'Excel', extensions: ['xlsx'] },
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
-      if (file) setExportMessage({ ok: true, text: t('export.done', { file }) });
+      if (file) {
+        setExportMessage({ ok: true, text: t('export.done', { file }) });
+        void revealInFolder(file);
+      }
     } catch (e) {
       setExportMessage({ ok: false, text: t('export.failed', { error: String(e) }) });
     }

@@ -81,6 +81,11 @@ describe('xlsx export', () => {
     const rows = cellsOf(ws);
     expect(rows).toHaveLength(1 + 125);
     expect(rows[0]).toContain('Mnożnik');
+    const head = rows[0]!;
+    expect(head.indexOf('Marża')).toBe(head.indexOf('Narzut') + 1);
+    const peak = rows.find((r) => r[head.indexOf('Klucz')] === '1|retail|peak')!;
+    expect(peak[head.indexOf('Marża')]).toBeCloseTo(1107 / 2257, 4);
+    expect(peak[head.indexOf('Narzut')]).toBeCloseTo(1.107, 4);
     const anchor = rows.find((r) => r[rows[0]!.indexOf('Klucz')] === '300|w4|pre3')!;
     expect(anchor[3]).toBe(12.51);
     expect(anchor[rows[0]!.indexOf('Status')]).toBe('kotwica');

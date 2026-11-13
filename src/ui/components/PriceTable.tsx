@@ -1,4 +1,4 @@
-import { Badge, Group, ScrollArea, Select, Stack, Table, Text, UnstyledButton } from '@mantine/core';
+import { Badge, Group, ScrollArea, Select, Stack, Table, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoney } from '../../core/money';
@@ -34,6 +34,7 @@ const COLUMNS = [
   'profitUnit',
   'profitTotal',
   'profitPct',
+  'marginPct',
   'nominalDiscount',
   'effectiveDiscount',
   'status',
@@ -60,6 +61,8 @@ const numeric = (r: PriceRow, col: Column): Rat | undefined => {
       return r.profitTotal;
     case 'profitPct':
       return r.profitPct;
+    case 'marginPct':
+      return r.marginPct;
     case 'nominalDiscount':
       return r.nominalDiscount;
     case 'effectiveDiscount':
@@ -124,7 +127,13 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit, scrub, constr
               {columns.map((col) => (
                 <Table.Th key={col} ta={numeric(rows[0]!, col) ? 'right' : 'left'} style={{ whiteSpace: 'nowrap' }}>
                   <UnstyledButton fz="xs" fw={700} onClick={() => toggleSort(col)}>
-                    {t(`columns.${col}`)}
+                    {col === 'profitPct' || col === 'marginPct' ? (
+                      <Tooltip label={t(`columnTips.${col}`)} withArrow openDelay={300}>
+                        <span style={{ textDecoration: 'underline dotted', cursor: 'help' }}>{t(`columns.${col}`)}</span>
+                      </Tooltip>
+                    ) : (
+                      t(`columns.${col}`)
+                    )}
                     {sort?.col === col ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
                   </UnstyledButton>
                 </Table.Th>
@@ -169,6 +178,7 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit, scrub, constr
                 <Table.Td ta="right">{moneyRat(r.profitUnit, lang)}</Table.Td>
                 <Table.Td ta="right">{moneyRat(r.profitTotal, lang)}</Table.Td>
                 <Table.Td ta="right">{pct(r.profitPct, lang)}</Table.Td>
+                <Table.Td ta="right">{pct(r.marginPct, lang)}</Table.Td>
                 <Table.Td ta="right">{pct(r.nominalDiscount, lang)}</Table.Td>
                 <Table.Td ta="right">{pct(r.effectiveDiscount, lang)}</Table.Td>
                 <Table.Td>

@@ -1,4 +1,4 @@
-import { type MantineColorsTuple, Paper, Select, TextInput, createTheme } from '@mantine/core';
+import { type MantineColorsTuple, Paper, Select, TextInput, Tooltip, createTheme } from '@mantine/core';
 
 /** Warm gold taken from the app icon. */
 const brand: MantineColorsTuple = [
@@ -48,5 +48,7 @@ export const theme = createTheme({
     TextInput: TextInput.extend({ defaultProps: { inputWrapperOrder } }),
     Select: Select.extend({ defaultProps: { inputWrapperOrder } }),
     Paper: Paper.extend({ defaultProps: { radius: 'lg', shadow: 'xs', withBorder: true } }),
+    // Tooltips follow the colour scheme (light card in light mode, dark card in dark mode) — styles in app.css.
+    Tooltip: Tooltip.extend({ classNames: { tooltip: 'app-tooltip', arrow: 'app-tooltip-arrow' } }),
   },
 });
