@@ -32,12 +32,13 @@ falls below it. Full rules: [SPEC.md](SPEC.md).
 
 ## Releasing
 
+Every command is a single line, so it works the same in PowerShell, cmd and Git Bash.
+
 1. **Bump the version** in all five places (keep them equal):
    `package.json`, `package-lock.json` (two entries at the top), `src-tauri/tauri.conf.json`,
    `src-tauri/Cargo.toml` and the `otk-price-helper` entry in `src-tauri/Cargo.lock`.
    New features or a new config `schemaVersion` → minor (`0.3.1` → `0.4.0`); fixes only → patch.
-Each command below is one line, so it works the same in PowerShell and in Git Bash.
-
+   Commit the bump.
 2. **Check and build** — everything must pass, then build the installers from the committed state:
    ```bash
    npm run typecheck
@@ -51,17 +52,15 @@ Each command below is one line, so it works the same in PowerShell and in Git Ba
    git merge --ff-only <branch>
    git push origin main
    ```
-4. **Tag** the release on `main`:
+4. **Publish** (needs the `gh` CLI, logged in):
    ```bash
-   git tag -a v0.4.0 -m "OTK Price Helper v0.4.0"
-   git push origin v0.4.0
+   npm run release
    ```
-5. **Publish** the GitHub release from the pushed tag (requires the `gh` CLI, logged in), with the
-   installers attached:
-   ```bash
-   gh release create v0.4.0 --verify-tag --title "OTK Price Helper v0.4.0" --generate-notes "src-tauri/target/release/bundle/nsis/OTK Price Helper_0.4.0_x64-setup.exe" "src-tauri/target/release/bundle/msi/OTK Price Helper_0.4.0_x64_en-US.msi"
-   ```
-   If an upload fails, `gh` removes the whole release; the tag stays, so just run the command again.
+   [`scripts/release.mjs`](scripts/release.mjs) takes the version from `package.json` and stops with a
+   message unless the version is the same in all files, everything is committed, `main` matches
+   `origin/main` and both installers of that version exist. Then it creates and pushes the tag
+   `v<version>` (if missing) and publishes the GitHub release with generated notes and both installers.
+   If an upload fails, `gh` removes the release but the tag stays — just run `npm run release` again.
 
 ## Layout
 
@@ -73,6 +72,7 @@ src/ui/        Calculator and Settings tabs, matrix, table, breakdown drawer
 src/i18n/      pl.json, en.json
 src/lib/       file dialogs (Tauri / browser fallback), storage
 src-tauri/     desktop shell (window, dialog + fs plugins only)
+scripts/       release.mjs (npm run release)
 tests/unit/    Vitest; tests/e2e/ Playwright
 ```
 
