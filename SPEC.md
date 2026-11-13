@@ -224,10 +224,15 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 
 Month types stay %, package × customer discounts become a matrix of net PLN amounts `A(t,k)` per unit:
 
-- **Generated** (default): from the configured %, taken from the retail price of the **cheapest regular
-  month** `M_d` (largest month discount) at the percent-mode base:
-  `R_d = ⌈⌈F / M_deep⌉ · m_month(M_d)⌉`, `A(t,k) = ⌊R_d · (1 − m_t · m_k)⌋`.
-  In `M_d` the amounts equal the % discounts (up to rounding down); in dearer months they are a smaller %.
+- **Generated** (default): from the configured %, taken from the retail price of the **peak month**
+  `M_p` (smallest month discount): `R_p = ⌈B · m_month(M_p)⌉`, `A(t,k) = ⌊R_p · (1 − m_t · m_k)⌋`.
+  `B` depends on the largest amount (below), so `R_p` is found by iteration: start from the percent-mode
+  base `⌈F / M_deep⌉`, then repeat `R_p → A → B` until `B` stops changing (it only rises and settles
+  after a few steps). In `M_p` the amounts equal the % discounts (up to rounding down); in cheaper months
+  they are a larger %. Manual amounts do not move `R_p`.
+  If `m_month(M_p) · max(1 − m_t · m_k) ≥ m_month(M_d)` (the largest amount would eat the whole price of
+  the cheapest month, so no `B` settles), or `B` would pass the price limit, `R_p` is the peak price at the
+  percent-mode base instead and a **warning** points at the cheapest month's discount.
 - **Manual**: any cell can be set by hand (≥ 0) in the calculator; typing the generated value back, or
   "Generate again from settings", returns to it. Manual amounts belong to the product being priced, not to
   the config file: they are remembered with the app state, kept when cost or quantity change, and they drop
@@ -242,9 +247,10 @@ Month types stay %, package × customer discounts become a matrix of net PLN amo
   (its "multiplier"), and prices are spread between `F` and the top exactly as in §5.2 step 12 — the
   amounts shrink proportionally.
 
-Defaults, `c = 10.00`, `N = 1000`: `R_d = ⌈22.57 · 0.70⌉ = 15.80`, `A(300, hurt 4) = ⌊15.80 · 0.2088⌋ = 3.29`,
-`B = ⌈(12.50 + 3.29) / 0.70⌉ = 22.56`; 300 · hurt 4 is 22.56 − 3.29 = 19.27 in the peak (14.6 %) and
-15.80 − 3.29 = 12.51 in pre-peak 3 (20.8 %); sale base 11.50 + 3.29 = 14.79.
+Defaults, `c = 10.00`, `N = 1000`: from `B = 22.57` the iteration settles at `B = 25.43`:
+`R_p = 25.43`, `A(300, hurt 4) = ⌊25.43 · 0.2088⌋ = 5.30`, `B = ⌈(12.50 + 5.30) / 0.70⌉ = 25.43`;
+300 · hurt 4 is 25.43 − 5.30 = 20.13 in the peak (20.8 %) and ⌈25.43 · 0.70⌉ − 5.30 = 12.51 in
+pre-peak 3 (29.8 %); sale base 11.50 + 5.30 = 16.80.
 
 ---
 

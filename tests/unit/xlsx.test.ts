@@ -121,12 +121,12 @@ describe('xlsx export', () => {
     const settings = cellsOf(wb.getWorksheet('Ustawienia')!);
     expect(settings.find((x) => x[0] === 'Rabaty pakietów i klientów')![1]).toBe('kwotowe (zł)');
     const start = settings.findIndex((x) => x[0] === 'Rabaty kwotowe (netto za szt.)');
-    expect(settings.slice(start).find((x) => x[0] === '300 szt.')!.slice(1, 6)).toEqual([1.26, 1.99, 2.42, 2.86, 4]);
+    expect(settings.slice(start).find((x) => x[0] === '300 szt.')!.slice(1, 6)).toEqual([2.03, 3.2, 3.9, 4.6, 4]);
     const details = cellsOf(wb.getWorksheet('Rabaty – szczegóły')!);
     const line = details.find((x) => x[0] === 300 && x[1] === 'hurt 4' && x[2] === 'Szczyt')!;
     expect([line[3], line[4], line[11]]).toEqual(['—', '—', 4]);
     const calc = cellsOf(wb.getWorksheet('Obliczenia')!);
-    expect(calc.filter((x) => x[0] === '+ największy rabat kwotowy').map((x) => x[1])).toEqual([4, 4]);
+    expect(calc.filter((x) => x[0] === '+ największy rabat kwotowy').map((x) => x[1])).toEqual([4.87, 4.87]);
     expect(cellsOf(wb.getWorksheet('Cennik')!).find((x) => x[0] === 'Rabaty pakietów i klientów')![1]).toBe('kwotowe (zł)');
   });
 

@@ -148,10 +148,12 @@ export interface AmountCell {
 
 /** Amount mode: one PLN amount per package × customer (key `qty|customerId`), the same in every month type. */
 export interface AmountMatrix {
-  /** Cheapest regular month type: generated amounts are its retail price × the configured discounts. */
+  /** Peak (dearest regular) month type: generated amounts are its retail price × the configured discounts. */
   refMonth: MonthType;
-  /** Retail price of refMonth at the percent-mode base, grosze. */
+  /** Retail price of refMonth at the base the generated amounts lead to, grosze. */
   refRetail: bigint;
+  /** False when no base fits peak-based amounts: refRetail is then the peak price at the percent-mode base. */
+  settled: boolean;
   cells: Record<string, AmountCell>;
   /** Largest amount (the deepest combination). */
   max: bigint;

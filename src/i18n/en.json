@@ -239,6 +239,7 @@
     "flexSaleActive": "Flexible price list: sale prices were spread between the sale minimum and {{max}}.",
     "flexAtMinimum": "The flexible price list never goes below the minimum price — the highest price was raised to {{floor}}, so all regular prices equal the minimum.",
     "flexLowRaised": "Flexible price list: the lowest price was raised to {{low}} (highest {{max}}) — discounts were reduced so the edited price fits.",
+    "amountPeakUnsettled": "Amount discounts taken from the peak do not fit in the price of “{{month}}” — the largest one would be at least its whole price. The amounts were taken from the peak price at the percent-mode base, so in the peak they are a smaller % than the settings. Lower the discounts or enter the amounts by hand.",
     "amountTierOrder": "The amount discount of the {{b}} pcs package is smaller than of {{a}} pcs ({{customer}}) — the larger package costs more per unit.",
     "amountCustomerOrder": "“{{b}}” has a smaller amount discount than “{{a}}” ({{qty}} pcs package)."
   },
@@ -302,7 +303,7 @@
     "discountMode": "Package and customer discounts",
     "discountModePercent": "percent",
     "discountModeAmount": "amounts (PLN)",
-    "discountModeAmountHint": "One table of PLN amounts (net per unit) shared by all month types, sale included: price = month price − amount. The amounts are generated from the % discounts below, taken from the cheapest month's retail price — there they equal the settings, in dearer months they are a smaller percentage. Change any amount in the calculator."
+    "discountModeAmountHint": "One table of PLN amounts (net per unit) shared by all month types, sale included: price = month price − amount. The amounts are generated from the % discounts below, taken from the peak month's retail price — there they equal the settings, in cheaper months they are a larger percentage. Change any amount in the calculator."
   },
   "export": {
     "confirmErrors": "{{count}} prices are below the minimum. Export anyway?",
@@ -398,7 +399,7 @@
   },
   "amounts": {
     "title": "Amount discounts",
-    "hint": "Net amount per unit subtracted from the price of every month, sale included. Generated from the % discounts in the settings, taken from the cheapest month's retail price ({{month}}: {{retail}}). You can change any amount — the base price adjusts so the deepest combination still sits at the minimum price.",
+    "hint": "Net amount per unit subtracted from the price of every month, sale included. Generated from the % discounts in the settings, taken from the peak month's retail price ({{month}}: {{retail}}). You can change any amount — the base price adjusts so the deepest combination still sits at the minimum price.",
     "generated": "from settings",
     "manual": "own: {{count}}",
     "regenerate": "Generate again from settings",

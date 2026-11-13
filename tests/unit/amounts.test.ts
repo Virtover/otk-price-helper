@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { explainRow } from '../../src/core/explain';
 import { calculate, priceAtBase, priceAtTop, shiftOverrides } from '../../src/core/pricing';
-import { ge, lt, rat, sub } from '../../src/core/rational';
+import { ceil, div, ge, lt, rat, sub } from '../../src/core/rational';
 import type { Config, PriceList, ProductInput } from '../../src/core/types';
 import { configArb, inputArb } from './arbitraries';
 import { codes, config, input, row } from './helpers';
@@ -30,40 +30,40 @@ function amountList(
 describe('amount discounts (worked example: c = 10, N = 1000)', () => {
   const l = amountList();
 
-  it('generates amounts from the cheapest month at the percent-mode base', () => {
-    // Percent base 22.57 → Przedszczyt 3 retail ⌈22.57 · 0.70⌉ = 15.80.
-    expect(l.amounts).toMatchObject({ refMonth: 'pre3', refRetail: 1580n, max: 329n });
+  it('generates amounts from the peak retail price the base settles at', () => {
+    // From the percent base 22.57 the base rises with the largest amount until it settles at 25.43.
+    expect(l.amounts).toMatchObject({ refMonth: 'peak', refRetail: 2543n, max: 530n });
     expect(l.amounts!.cells['1|retail']).toEqual({ gr: 0n, auto: 0n, manual: false });
-    // 15.80 · (1 − 0.96 · 0.92) = 1.84544 → rounded down
-    expect(l.amounts!.cells['100|w2']!.gr).toBe(184n);
-    expect(l.amounts!.cells['300|w4']!.gr).toBe(329n);
+    // 25.43 · (1 − 0.96 · 0.92) = 2.970224 → rounded down
+    expect(l.amounts!.cells['100|w2']!.gr).toBe(297n);
+    expect(l.amounts!.cells['300|w4']!.gr).toBe(530n);
   });
 
   it('prices every month as month price minus the same amount', () => {
-    // B = ⌈(12.50 + 3.29) / 0.70⌉ = 22.56
-    expect(l.base).toBe(2256n);
-    expect(row(l, '1|retail|peak').netUnit).toBe(2256n);
-    expect(row(l, '300|w4|peak').netUnit).toBe(2256n - 329n);
-    expect(row(l, '100|w2|pre1').netUnit).toBe(2031n - 184n);
+    // B = ⌈(12.50 + 5.30) / 0.70⌉ = 25.43 — the same base the peak retail price was taken from
+    expect(l.base).toBe(2543n);
+    expect(row(l, '1|retail|peak').netUnit).toBe(2543n);
+    expect(row(l, '300|w4|peak').netUnit).toBe(2543n - 530n);
+    expect(row(l, '100|w2|pre1').netUnit).toBe(2289n - 297n);
     const anchor = row(l, '300|w4|pre3');
-    expect(anchor.netUnit).toBe(1580n - 329n);
+    expect(anchor.netUnit).toBe(1781n - 530n);
     expect(anchor.status).toBe('anchor');
   });
 
   it('applies the same amounts in sale, from the sale minimum plus the largest amount', () => {
-    expect(l.sale.baseCalculated).toBe(1150n + 329n);
+    expect(l.sale.baseCalculated).toBe(1150n + 530n);
     expect(row(l, '300|w4|sale').netUnit).toBe(1150n);
-    expect(row(l, '100|w2|sale').netUnit).toBe(1479n - 184n);
+    expect(row(l, '100|w2|sale').netUnit).toBe(1680n - 297n);
   });
 
-  it('keeps the configured % exactly in the cheapest month and smaller ones in dearer months', () => {
+  it('keeps the configured % exactly in the peak and larger ones in cheaper months', () => {
     const share = (key: string, month: string) => {
       const retail = row(l, `1|retail|${month}`).netUnit;
       return Number(retail - row(l, `${key}|${month}`).netUnit) / Number(retail);
     };
-    // 20.88 % and 14.58 %, less the rounding of the amount down to the grosz
-    expect(share('300|w4', 'pre3')).toBeCloseTo(0.2088, 2);
-    expect(share('300|w4', 'peak')).toBeCloseTo(0.1458, 2);
+    // 20.88 % and 29.76 %, less the rounding of the amount down to the grosz
+    expect(share('300|w4', 'peak')).toBeCloseTo(0.2088, 2);
+    expect(share('300|w4', 'pre3')).toBeCloseTo(0.2976, 2);
   });
 
   it('explains a row as month price minus the amount', () => {
@@ -71,7 +71,7 @@ describe('amount discounts (worked example: c = 10, N = 1000)', () => {
     const keys = steps.map((s) => s.key);
     expect(keys).toEqual(expect.arrayContaining(['amountMax', 'amountBaseExact', 'amountMonthPrice', 'amountAuto']));
     expect(keys).not.toContain('tierMultiplier');
-    expect(steps.find((s) => s.key === 'amountMonthPrice')!.value).toEqual({ money: 2031n });
+    expect(steps.find((s) => s.key === 'amountMonthPrice')!.value).toEqual({ money: 2289n });
   });
 });
 
@@ -92,19 +92,42 @@ describe('breakdown in amount mode', () => {
 
 describe('manual amounts', () => {
   it('raise the base so the deepest combination still reaches the minimum', () => {
-    const l = amountList({ '300|w4': 500n });
-    expect(l.amounts!.cells['300|w4']).toMatchObject({ gr: 500n, manual: true });
-    expect(l.base).toBe(2500n); // ⌈(1250 + 500) / 0.7⌉
+    const l = amountList({ '300|w4': 850n });
+    expect(l.amounts!.cells['300|w4']).toMatchObject({ gr: 850n, manual: true });
+    expect(l.amounts!.refRetail).toBe(2543n); // manual amounts do not move the reference price
+    expect(l.base).toBe(3000n); // ⌈(1250 + 850) / 0.7⌉
     expect(row(l, '300|w4|pre3').netUnit).toBe(1250n);
-    expect(row(l, '300|w4|peak').netUnit).toBe(2000n);
+    expect(row(l, '300|w4|peak').netUnit).toBe(2150n);
   });
 
   it('warn when a larger package or a later customer gets a smaller amount', () => {
-    const l = amountList({ '200|w4': 400n });
+    const l = amountList({ '200|w4': 700n });
     expect(codes(l.issues)).toContain('amountTierOrder');
     expect(l.issues.find((i) => i.code === 'amountTierOrder')!.path).toBe('amounts.300|w4');
-    const c = amountList({ '50|w1': 300n });
+    const c = amountList({ '50|w1': 600n });
     expect(codes(c.issues)).toContain('amountCustomerOrder');
+  });
+
+  it('fall back to the percent-mode peak price, with a warning, when no base fits', () => {
+    // Cheapest month 40 % off, deepest package × customer 1 − 0.6 · 0.6 = 64 % of the peak price: never fits.
+    const cfg = amountConfig((c) => {
+      c.months = [
+        { ...c.months[0]!, discountBp: 0 },
+        { ...c.months[1]!, discountBp: 4000 },
+      ];
+      c.calendar = c.calendar.map(() => c.months[0]!.id);
+      c.packages = [{ qty: 300, discountBp: 4000 }];
+      c.customers = c.customers.map((cu, i) => ({ ...cu, discountBp: i === c.customers.length - 1 ? 4000 : 0 }));
+    });
+    const l = amountList({}, {}, input(1000, 1000), cfg);
+    expect(l.amounts!.settled).toBe(false);
+    expect(l.amounts!.refRetail).toBe(ceil(div(l.floor, rat(216n, 1000n)))); // percent base, peak 0 %
+    expect(l.issues.find((i) => i.code === 'amountPeakUnsettled')).toMatchObject({
+      level: 'warning',
+      path: 'months.1.discountBp',
+    });
+    expect(amountList().amounts!.settled).toBe(true);
+    expect(codes(amountList().issues)).not.toContain('amountPeakUnsettled');
   });
 
   it('ignore negative values and cells of excluded packages', () => {

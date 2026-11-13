@@ -332,7 +332,7 @@ export function calculate(
   const percentDeep = product([multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp), deepMonthMultiplier]);
   const amounts =
     config.discountMode === 'amount'
-      ? amountMatrix(config, tiers, floor, percentDeep, deepMonth, options.amounts)
+      ? amountMatrix(config, tiers, floor, percentDeep, deepMonthMultiplier, options.amounts)
       : undefined;
   // Amount mode: B = ⌈(F + largest amount) / cheapest month multiplier⌉ — the cheapest month's price
   // minus the largest amount still reaches the minimum.
@@ -478,6 +478,14 @@ export function calculate(
 
   // 8. Result-level feedback.
   if (amounts) issues.push(...amountOrderIssues(config, tiers, amounts));
+  if (amounts && !amounts.settled) {
+    issues.push({
+      level: 'warning',
+      code: 'amountPeakUnsettled',
+      params: { month: { text: config.months.find((m) => m.id === deepMonth)!.label } },
+      path: `months.${config.months.findIndex((m) => m.id === deepMonth)}.discountBp`,
+    });
+  }
   if (gt(rat(fixedPerUnit), c)) {
     issues.push({
       level: 'warning',
@@ -590,35 +598,57 @@ export function calculate(
 
 /**
  * Amount mode (§5.4): one PLN amount per package × customer. Generated amounts apply the configured
- * package and customer discounts to the cheapest month's retail price at the percent-mode base, so in
- * that month they equal the % discounts and in dearer months they are a smaller share of the price.
- * Manual amounts (≥ 0) replace generated ones cell by cell.
+ * package and customer discounts to the peak month's retail price (the dearest regular month), so in
+ * the peak they equal the % discounts and in cheaper months they are a larger share of the price.
+ * The peak price depends on the base and the base on the largest amount, so the reference price is
+ * found by iterating from the percent-mode base until the base stops changing (it only rises).
+ * When the largest discount at the peak price is as large as the cheapest month's price no base
+ * settles (`settled: false`); the reference is then the peak price at the percent-mode base.
+ * Either way the base is derived from the final amounts, so the minimum always holds.
+ * Manual amounts (≥ 0) replace generated ones cell by cell; they do not move the reference price.
  */
 function amountMatrix(
   config: Config,
   tiers: Tier[],
   floor: Rat,
   percentDeep: Rat,
-  refMonth: MonthType,
+  deepMonthMultiplier: Rat,
   manual: Record<string, bigint> = {},
 ): AmountMatrix {
-  const refRetail = ceil(mul(rat(ceil(div(floor, percentDeep))), multiplierOf(monthDiscountBp(config, refMonth))));
+  const refMonth = config.months.reduce((best, cur) => (cur.discountBp < best.discountBp ? cur : best)).id;
+  const refMultiplier = multiplierOf(monthDiscountBp(config, refMonth));
+  const discounts = tiers.flatMap((tier) =>
+    config.customers.map((customer) => ({
+      key: amountKey(tier.qty, customer.id),
+      discount: sub(ONE, mul(multiplierOf(tier.discountBp), multiplierOf(customer.discountBp))),
+    })),
+  );
+  const largest = discounts.reduce((m, { discount }) => (gt(discount, m) ? discount : m), rat(0n));
+  // Rounded down: a generated amount never exceeds the % discount (so the largest one comes from `largest`).
+  const amountOf = (retail: bigint, discount: Rat) => floorOf(mul(rat(retail), discount));
+  const percentBase = ceil(div(floor, percentDeep));
+  const retailAt = (base: bigint) => ceil(mul(rat(base), refMultiplier));
+  // Each step multiplies the remaining gap by m_peak · largest / m_cheapest; at 1 or more it never closes.
+  let settled = lt(mul(refMultiplier, largest), deepMonthMultiplier);
+  let base = percentBase;
+  for (let i = 0; settled; i++) {
+    const next = ceil(div(add(floor, rat(amountOf(retailAt(base), largest))), deepMonthMultiplier));
+    if (next === base) break;
+    base = next;
+    if (base > MAX_PRICE_GR || i === 10_000) settled = false;
+  }
+  const refRetail = retailAt(settled ? base : percentBase);
   const cells: AmountMatrix['cells'] = {};
   let max = 0n;
-  for (const tier of tiers) {
-    for (const customer of config.customers) {
-      const key = amountKey(tier.qty, customer.id);
-      const discount = sub(ONE, mul(multiplierOf(tier.discountBp), multiplierOf(customer.discountBp)));
-      // Rounded down: a generated amount never exceeds the % discount.
-      const auto = floorOf(mul(rat(refRetail), discount));
-      const own = manual[key];
-      const isManual = own !== undefined && own >= 0n;
-      const gr = isManual ? own : auto;
-      cells[key] = { gr, auto, manual: isManual };
-      if (gr > max) max = gr;
-    }
+  for (const { key, discount } of discounts) {
+    const auto = amountOf(refRetail, discount);
+    const own = manual[key];
+    const isManual = own !== undefined && own >= 0n;
+    const gr = isManual ? own : auto;
+    cells[key] = { gr, auto, manual: isManual };
+    if (gr > max) max = gr;
   }
-  return { refMonth, refRetail, cells, max };
+  return { refMonth, refRetail, settled, cells, max };
 }
 
 /** Amounts that shrink towards a larger package or a later customer type (warning: the price rises there). */

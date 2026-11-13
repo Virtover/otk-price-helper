@@ -391,8 +391,8 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
       ? ([
           [t('breakdown.amountMax'), pln(amounts.max), MONEY],
           [
-            t('breakdown.amountDeepMonth', { month: monthName(ctx, amounts.refMonth) }),
-            mult(multiplierOf(monthDiscountBp(config, amounts.refMonth))),
+            t('breakdown.amountDeepMonth', { month: monthName(ctx, list.deepest.month) }),
+            mult(multiplierOf(monthDiscountBp(config, list.deepest.month))),
             MULT,
           ],
           [t('breakdown.amountBaseExact'), plnPrecise(list.baseExact), MONEY_PRECISE],

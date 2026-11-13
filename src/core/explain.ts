@@ -105,8 +105,8 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
             amountMaxStep(),
             {
               key: 'amountDeepMonth',
-              value: { mult: multiplierOf(monthDiscountBp(config, amounts.refMonth)) },
-              params: { month: monthParam(config, amounts.refMonth) },
+              value: { mult: multiplierOf(monthDiscountBp(config, list.deepest.month)) },
+              params: { month: monthParam(config, list.deepest.month) },
             },
             { key: 'amountBaseExact', value: { moneyPrecise: list.baseExact } },
           ]
