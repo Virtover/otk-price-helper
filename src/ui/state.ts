@@ -44,6 +44,8 @@ export type Action =
   | { type: 'loadConfig'; config: Config }
   | { type: 'markSaved' }
   | { type: 'setInput'; field: keyof InputText; value: string }
+  /** Empties every product field (name, cost, quantity, price limit); undoable like any edit. */
+  | { type: 'clearInput' }
   | { type: 'setRowOverride'; key: string; value?: bigint }
   | { type: 'setBaseOverride'; value?: bigint }
   | { type: 'setOverrides'; overrides: Overrides }
@@ -98,6 +100,11 @@ export function reducer(state: AppState, action: Action): AppState {
       const next = { ...state, input: { ...state.input, [action.field]: action.value } };
       // Name and the optional price limit do not change any calculated price.
       return action.field === 'name' || action.field === 'maxPrice' ? next : { ...next, ...dropOverrides(state) };
+    }
+    case 'clearInput': {
+      const empty: InputText = { name: '', cost: '', qty: '', maxPrice: '' };
+      if (Object.values(state.input).every((v) => v === '')) return state;
+      return { ...state, input: empty, ...dropOverrides(state) };
     }
     case 'setRowOverride': {
       const rows = { ...state.overrides.rows };

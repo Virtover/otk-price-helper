@@ -30,6 +30,17 @@ describe('app state', () => {
     expect(cleared.overrides).toEqual({ rows: {} });
   });
 
+  it('clears every product field at once, dropping manual edits; undo brings them back', () => {
+    const filled = { ...edited, input: { name: 'Kubek', cost: '10', qty: '1000', maxPrice: '20' } };
+    const s = reducer(filled, { type: 'clearInput' });
+    expect(s.input).toEqual({ name: '', cost: '', qty: '', maxPrice: '' });
+    expect(s.overrides).toEqual({ rows: {} });
+    expect(reducer(s, { type: 'clearInput' })).toBe(s); // already empty: nothing changes
+    const h: Tracked = { app: filled, past: [], future: [], at: 0 };
+    const cleared = historyReducer(h, { type: 'do', action: { type: 'clearInput' }, group: 'clearInput', at: 1 });
+    expect(historyReducer(cleared, { type: 'undo' }).app.input).toEqual(filled.input);
+  });
+
   it('drops overrides with a notice when cost, quantity or config change', () => {
     const s = reducer(edited, { type: 'setInput', field: 'cost', value: '11' });
     expect(s.overrides).toEqual({ rows: {} });

@@ -20,7 +20,8 @@
     "qtyHint": "Liczba sztuk w zamówieniu sklepu",
     "nameRequired": "Nazwa produktu jest wymagana do eksportu",
     "maxPrice": "Cena maksymalna (netto, za sztukę)",
-    "maxPriceHint": "Opcjonalnie — ceny powyżej zostaną podświetlone"
+    "maxPriceHint": "Opcjonalnie — ceny powyżej zostaną podświetlone",
+    "clear": "Wyczyść"
   },
   "parse": {
     "empty": "Wpisz wartość",

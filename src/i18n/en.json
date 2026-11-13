@@ -20,7 +20,8 @@
     "qtyHint": "Units in the shop's purchase order",
     "nameRequired": "Product name is required for export",
     "maxPrice": "Maximum price (net, per unit)",
-    "maxPriceHint": "Optional — prices above it are highlighted"
+    "maxPriceHint": "Optional — prices above it are highlighted",
+    "clear": "Clear"
   },
   "parse": {
     "empty": "Enter a value",

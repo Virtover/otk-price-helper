@@ -182,7 +182,27 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
   return (
     <Stack gap="xl">
       <div>
-        <StepHeader step={1} title={t('steps.product')} subtitle={t('steps.productHint')} />
+        <StepHeader
+          step={1}
+          title={t('steps.product')}
+          subtitle={t('steps.productHint')}
+          right={
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              radius="xl"
+              disabled={Object.values(input).every((v) => v === '')}
+              onClick={() => {
+                setNameError(false);
+                dispatch({ type: 'clearInput' });
+              }}
+              data-testid="clear-input"
+            >
+              {t('input.clear')}
+            </Button>
+          }
+        />
         <Paper p="lg">
           <Group align="flex-start" gap="md" wrap="wrap">
           <TextInput
