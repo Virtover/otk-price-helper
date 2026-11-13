@@ -1,7 +1,7 @@
 import type { Config } from '../core/types';
 
 export const DEFAULT_CONFIG: Config = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   handling: { percentBp: 1000, fixedGr: 50000 },
   minProfit: { percentBp: 1000, fixedGr: 0 },
   vatBp: 2300,
@@ -27,6 +27,7 @@ export const DEFAULT_CONFIG: Config = {
   ],
   sale: { factorBp: 10000 },
   calendar: ['sale', 'sale', 'pre3', 'pre2', 'pre1', 'peak', 'sale', 'sale', 'pre3', 'pre2', 'pre1', 'peak'],
+  discountMode: 'percent',
   ui: { discountInput: 'percent' },
 };
 

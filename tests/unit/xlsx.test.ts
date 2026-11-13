@@ -113,6 +113,23 @@ describe('xlsx export', () => {
     expect([single[1], single[8]]).toEqual([0, 0]);
   });
 
+  it('documents amount discounts', async () => {
+    const cfg = config((c) => (c.discountMode = 'amount'));
+    const r = calculate(input(1000, 1000), cfg, { rows: {} }, { amounts: { '300|w4': 400n } });
+    if (!r.ok) throw new Error('failed');
+    const wb = await read(ctx(r.list, cfg));
+    const settings = cellsOf(wb.getWorksheet('Ustawienia')!);
+    expect(settings.find((x) => x[0] === 'Rabaty pakietów i klientów')![1]).toBe('kwotowe (zł)');
+    const start = settings.findIndex((x) => x[0] === 'Rabaty kwotowe (netto za szt.)');
+    expect(settings.slice(start).find((x) => x[0] === '300 szt.')!.slice(1, 6)).toEqual([1.26, 1.99, 2.42, 2.86, 4]);
+    const details = cellsOf(wb.getWorksheet('Rabaty – szczegóły')!);
+    const line = details.find((x) => x[0] === 300 && x[1] === 'hurt 4' && x[2] === 'Szczyt')!;
+    expect([line[3], line[4], line[11]]).toEqual(['—', '—', 4]);
+    const calc = cellsOf(wb.getWorksheet('Obliczenia')!);
+    expect(calc.filter((x) => x[0] === '+ największy rabat kwotowy').map((x) => x[1])).toEqual([4, 4]);
+    expect(cellsOf(wb.getWorksheet('Cennik')!).find((x) => x[0] === 'Rabaty pakietów i klientów')![1]).toBe('kwotowe (zł)');
+  });
+
   it('marks flexed prices and the flexible mode', async () => {
     const r = calculate({ ...input(1000, 1000), maxPriceGr: 2000n }, config(), { rows: {} }, { flexible: true });
     if (!r.ok) throw new Error('failed');

@@ -30,6 +30,8 @@ export interface AppState {
   clearedOverrides: number;
   /** What the price matrix cells show: prices, or discounts from the month's retail price. */
   priceView: PriceView;
+  /** Amount mode: amounts set by hand (grosze, key `qty|customerId`); other cells are generated. */
+  amounts: Record<string, bigint>;
 }
 
 export type PriceView = 'price' | 'amount' | 'percent';
@@ -50,6 +52,8 @@ export type Action =
   | { type: 'setSmartUpdates'; value: boolean }
   | { type: 'setShowDetails'; value: boolean }
   | { type: 'setPriceView'; value: PriceView }
+  | { type: 'setAmount'; key: string; value?: bigint }
+  | { type: 'resetAmounts' }
   | { type: 'dismissCleared' };
 
 const STORAGE_KEY = 'otk-price-helper.state.v1';
@@ -64,6 +68,8 @@ interface Stored {
   editIndividually: boolean;
   flexible: boolean;
   priceView: PriceView;
+  /** Grosze as strings (JSON has no BigInt). */
+  amounts: Record<string, string>;
 }
 
 const countOverrides = (o: Overrides) =>
@@ -116,9 +122,28 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, showDetails: action.value };
     case 'setPriceView':
       return { ...state, priceView: action.value };
+    // Amounts change prices like settings do, so manual price edits are dropped. They are kept when the
+    // cost or quantity change: they are the shop's own decision, and the base keeps them above the minimum.
+    case 'setAmount': {
+      const amounts = { ...state.amounts };
+      if (action.value === undefined) delete amounts[action.key];
+      else amounts[action.key] = action.value;
+      return { ...state, amounts, ...dropOverrides(state) };
+    }
+    case 'resetAmounts':
+      return { ...state, amounts: {}, ...dropOverrides(state) };
     case 'dismissCleared':
       return { ...state, clearedOverrides: 0 };
   }
+}
+
+function readAmounts(stored: unknown): Record<string, bigint> {
+  if (typeof stored !== 'object' || stored === null) return {};
+  const out: Record<string, bigint> = {};
+  for (const [k, v] of Object.entries(stored)) {
+    if (typeof v === 'string' && /^\d{1,12}$/.test(v)) out[k] = BigInt(v);
+  }
+  return out;
 }
 
 export function initialState(): AppState {
@@ -140,6 +165,7 @@ export function initialState(): AppState {
     flexible: stored.flexible ?? false,
     clearedOverrides: 0,
     priceView: PRICE_VIEWS.includes(stored.priceView as PriceView) ? stored.priceView! : 'price',
+    amounts: readAmounts(stored.amounts),
   };
 }
 
@@ -156,6 +182,7 @@ export function useAppState() {
       editIndividually: state.editIndividually,
       flexible: state.flexible,
       priceView: state.priceView,
+      amounts: Object.fromEntries(Object.entries(state.amounts).map(([k, v]) => [k, v.toString()])),
     };
     writeStored(STORAGE_KEY, stored);
   }, [state]);

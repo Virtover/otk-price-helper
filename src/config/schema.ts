@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Config } from '../core/types';
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 const int = z.number().int();
 
@@ -20,7 +20,7 @@ const labelled = z
  */
 export const configSchema = z
   .object({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(4),
     handling: z.object({ percentBp: int, fixedGr: int }).strict(),
     minProfit: z.object({ percentBp: int, fixedGr: int }).strict(),
     vatBp: int,
@@ -30,6 +30,7 @@ export const configSchema = z
     months: z.array(labelled).max(24),
     sale: z.object({ factorBp: int }).strict(),
     calendar: z.array(z.string().min(1).max(64)).length(12),
+    discountMode: z.enum(['percent', 'amount']),
     ui: z.object({ discountInput: z.enum(['percent', 'multiplier']) }).strict(),
   })
   .strict();

@@ -10,6 +10,29 @@ import { amountOff, money, monthLabel, pct, pctOff } from '../format';
 import type { PriceView } from '../state';
 import { STATUS_COLOR, statusBg } from './status';
 
+/** One line of a cell: per-unit value, optional whole-package value and a trailing remark. */
+interface CellLine {
+  label?: string;
+  unit: string;
+  pkg?: string;
+  tail?: string;
+}
+
+/** " / package value" (softer than the per-unit value, see .pkg-value), then " · tail". */
+function PackagePart({ line }: { line: CellLine }) {
+  return (
+    <>
+      {line.pkg && (
+        <>
+          <span className="pkg-sep"> / </span>
+          <span className="pkg-value">{line.pkg}</span>
+        </>
+      )}
+      {line.tail && ` · ${line.tail}`}
+    </>
+  );
+}
+
 interface Props {
   list: PriceList;
   config: Config;
@@ -40,21 +63,22 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
   const retail = monthRetail(list, config, month);
   const retailKey = rowKey(1n, config.customers[0]!.id, month);
 
-  /** Cell text in the chosen view: [main line, dimmed line]. */
-  const cellText = (row: PriceRow, implicit: boolean): [string, string] => {
+  /** Cell text in the chosen view: [main line, dimmed line]; `pkg` is the whole-package value, shown in colour. */
+  const cellText = (row: PriceRow, implicit: boolean): [CellLine, CellLine] => {
+    const pkg = (value: string) => (implicit ? undefined : value);
     if (view === 'price' || row.key === retailKey) {
-      const second = view === 'price' ? `${t('summary.gross')} ${formatMoney(row.grossUnit, lang)}` : t('matrix.retailRef');
       return [
-        `${formatMoney(row.netUnit, lang)}${implicit ? '' : ` / ${formatMoney(row.netTotal, lang)}`}`,
-        view === 'price' && !implicit ? `${second} / ${formatMoney(row.grossTotal, lang)}` : second,
+        { unit: formatMoney(row.netUnit, lang), pkg: pkg(formatMoney(row.netTotal, lang)) },
+        view === 'price'
+          ? { label: t('summary.gross'), unit: formatMoney(row.grossUnit, lang), pkg: pkg(formatMoney(row.grossTotal, lang)) }
+          : { unit: t('matrix.retailRef') },
       ];
     }
+    // Both lines describe the same discount: the chosen unit on top, its complement below.
     const d = retailDiscount(retail, row.netUnit, row.grossUnit);
-    if (view === 'percent') return [pctOff(d.pct, lang), `${t('summary.net')} ${formatMoney(row.netUnit, lang)}`];
-    return [
-      `${amountOff(d.net, lang)}${implicit ? '' : ` / ${amountOff(d.net * row.qty, lang)}`}`,
-      `${t('summary.gross')} ${amountOff(d.gross!, lang)}`,
-    ];
+    const net = { unit: amountOff(d.net, lang), pkg: pkg(amountOff(d.net * row.qty, lang)) };
+    if (view === 'percent') return [{ unit: pctOff(d.pct, lang) }, { label: t('summary.net'), ...net }];
+    return [net, { label: t('summary.gross'), unit: amountOff(d.gross!, lang), tail: pctOff(d.pct, lang) }];
   };
 
   return (
@@ -143,12 +167,15 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                             </Text>
                           )}
                           <Text span fw={700} inherit c={row.aboveMax ? 'orange.7' : undefined}>
-                            {main}
+                            {main.unit}
                           </Text>
+                          <PackagePart line={main} />
                           {row.stale && ' *'}
                         </Text>
-                        <Text size="xs" c="dimmed">
-                          {second}
+                        <Text size="xs" c="dimmed" className="cell-sub">
+                          {second.label && `${second.label} `}
+                          {second.unit}
+                          <PackagePart line={second} />
                         </Text>
                       </UnstyledButton>
                     </Table.Td>

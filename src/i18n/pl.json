@@ -70,8 +70,8 @@
       "amount": "Rabat zł",
       "percent": "Rabat %"
     },
-    "cellHintAmount": "W komórce: rabat od ceny detalicznej tego miesiąca — netto za szt. / za cały pakiet, pod spodem brutto za szt.",
-    "cellHintPercent": "W komórce: rabat w % od ceny detalicznej tego miesiąca (nie od ceny bazowej), pod spodem cena netto za szt.",
+    "cellHintAmount": "W komórce: rabat od ceny detalicznej tego miesiąca — netto za szt. / za cały pakiet, pod spodem brutto za szt. i w %.",
+    "cellHintPercent": "W komórce: rabat w % od ceny detalicznej tego miesiąca (nie od ceny bazowej), pod spodem ten sam rabat netto za szt. / za cały pakiet.",
     "retailRef": "cena detaliczna",
     "retailInfo": "Cena detaliczna – {{month}} (1 szt. · {{customer}}): {{net}} netto, {{gross}} brutto — {{relation}}.",
     "relationBelow": "o {{amount}} ({{pct}}) taniej niż cena bazowa {{top}}",
@@ -185,7 +185,13 @@
     "flexPosition": "Położenie między ceną minimalną (0 %) a maksymalną (100 %)",
     "feeUnit": "− prowizja od ceny sprzedaży ({{fee}} brutto)",
     "flexSaleLinked": "Elastyczny cennik: najwyższa cena wyprzedażowa = {{ratio}} najwyższej ceny {{top}}",
-    "flexLow": "Elastyczny cennik: najniższa cena (podniesiona edycją)"
+    "flexLow": "Elastyczny cennik: najniższa cena (podniesiona edycją)",
+    "amountMax": "+ największy rabat kwotowy",
+    "amountDeepMonth": "÷ najtańszy miesiąc ({{month}})",
+    "amountBaseExact": "= dokładna cena bazowa",
+    "amountMonthPrice": "= cena w tym miesiącu (w górę)",
+    "amountAuto": "− rabat kwotowy {{qty}} szt. · {{customer}} (z ustawień)",
+    "amountManual": "− rabat kwotowy {{qty}} szt. · {{customer}} (własny)"
   },
   "issues": {
     "title": "Komunikaty",
@@ -230,7 +236,9 @@
     "flexActive": "Elastyczny cennik: pełne rabaty wymagałyby ceny bazowej {{base}}, a najwyższa cena to {{max}} — ceny rozłożono między ceną minimalną a {{max}}.",
     "flexSaleActive": "Elastyczny cennik: ceny wyprzedażowe rozłożono między minimum wyprzedaży a {{max}}.",
     "flexAtMinimum": "Elastyczny cennik nie schodzi poniżej ceny minimalnej — najwyższa cena została podniesiona do {{floor}}, więc wszystkie zwykłe ceny są równe minimum.",
-    "flexLowRaised": "Elastyczny cennik: najniższa cena podniesiona do {{low}} (najwyższa {{max}}) — rabaty zmniejszono, aby edytowana cena się zmieściła."
+    "flexLowRaised": "Elastyczny cennik: najniższa cena podniesiona do {{low}} (najwyższa {{max}}) — rabaty zmniejszono, aby edytowana cena się zmieściła.",
+    "amountTierOrder": "Rabat kwotowy pakietu {{b}} szt. jest mniejszy niż pakietu {{a}} szt. ({{customer}}) — większy pakiet będzie droższy za sztukę.",
+    "amountCustomerOrder": "„{{b}}” ma mniejszy rabat kwotowy niż „{{a}}” (pakiet {{qty}} szt.)."
   },
   "settings": {
     "costs": "Koszty i zysk",
@@ -288,7 +296,11 @@
     "addMonth": "Dodaj rodzaj miesiąca",
     "newMonth": "nowy miesiąc",
     "fees": "Prowizje %",
-    "feesHint": "Od ceny brutto: platforma, płatności"
+    "feesHint": "Od ceny brutto: platforma, płatności",
+    "discountMode": "Rabaty pakietów i klientów",
+    "discountModePercent": "procentowe",
+    "discountModeAmount": "kwotowe (zł)",
+    "discountModeAmountHint": "Jedna tabela kwot w zł (netto za sztukę) wspólna dla wszystkich typów miesięcy, także wyprzedaży: cena = cena miesiąca − kwota. Kwoty powstają z rabatów % poniżej, liczonych od ceny detalicznej najtańszego miesiąca — tam są dokładnie takie jak w ustawieniach, w droższych miesiącach są procentowo mniejsze. Każdą kwotę zmienisz w kalkulatorze."
   },
   "export": {
     "confirmErrors": "Ceny poniżej minimum: {{count}}. Eksportować mimo to?",
@@ -358,7 +370,8 @@
       "step": "Krok",
       "value": "Wartość",
       "level": "Poziom",
-      "message": "Komunikat"
+      "message": "Komunikat",
+      "amount": "Rabat kwotowy"
     },
     "calc": {
       "fixedExact": "Stałe koszty obsługi na sztukę (dokładnie, przed zaokrągleniem)",
@@ -376,6 +389,19 @@
     "retailGross": "Cena detaliczna brutto",
     "retailBelowTop": "Taniej niż cena bazowa (netto, % ceny bazowej)",
     "retailAmount": "Rabat netto / szt. (zł)",
-    "retailPct": "Rabat % od ceny detalicznej"
+    "retailPct": "Rabat % od ceny detalicznej",
+    "discountMode": "Rabaty pakietów i klientów",
+    "amountsTitle": "Rabaty kwotowe (netto za szt.)",
+    "amountsManual": "Zmienione ręcznie"
+  },
+  "amounts": {
+    "title": "Rabaty kwotowe",
+    "hint": "Kwota netto za sztukę odejmowana od ceny każdego miesiąca, także wyprzedaży. Wygenerowane z rabatów % w ustawieniach, liczonych od ceny detalicznej najtańszego miesiąca ({{month}}: {{retail}}). Możesz zmienić każdą kwotę — cena bazowa dopasuje się tak, żeby najgłębsza kombinacja dalej miała cenę minimalną.",
+    "generated": "z ustawień",
+    "manual": "własne: {{count}}",
+    "regenerate": "Wygeneruj ponownie z ustawień",
+    "autoValue": "Z ustawień: {{value}}",
+    "cellLabel": "Rabat kwotowy {{qty}} · {{customer}}",
+    "warnings": "ostrzeżenia: {{count}}"
   }
 }

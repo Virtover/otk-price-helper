@@ -64,14 +64,14 @@
     "units": "{{qty}} pcs",
     "single": "1 pc",
     "clickHint": "Click a price to see how it was calculated or to change it.",
-    "cellHint": "Each cell: net per unit / per whole package, below it gross per unit / per package.",
+    "cellHint": "In a cell: net per unit / per whole package, gross per unit / per package below.",
     "view": {
       "price": "Prices",
       "amount": "Discount PLN",
       "percent": "Discount %"
     },
-    "cellHintAmount": "In a cell: discount from this month's retail price — net per unit / per whole package, gross per unit below.",
-    "cellHintPercent": "In a cell: discount in % of this month's retail price (not of the base price), net unit price below.",
+    "cellHintAmount": "In a cell: discount from this month's retail price — net per unit / per whole package, gross per unit and % below.",
+    "cellHintPercent": "In a cell: discount in % of this month's retail price (not of the base price), the same discount net per unit / per whole package below.",
     "retailRef": "retail price",
     "retailInfo": "Retail price – {{month}} (1 unit · {{customer}}): {{net}} net, {{gross}} gross — {{relation}}.",
     "relationBelow": "{{amount}} ({{pct}}) below the base price {{top}}",
@@ -185,7 +185,13 @@
     "flexPosition": "Position between minimum price (0 %) and maximum price (100 %)",
     "feeUnit": "− fee from the selling price ({{fee}} of gross)",
     "flexSaleLinked": "Flexible price list: highest sale price = {{ratio}} of the highest price {{top}}",
-    "flexLow": "Flexible price list: lowest price (raised by an edit)"
+    "flexLow": "Flexible price list: lowest price (raised by an edit)",
+    "amountMax": "+ largest amount discount",
+    "amountDeepMonth": "÷ cheapest month ({{month}})",
+    "amountBaseExact": "= exact base price",
+    "amountMonthPrice": "= price in this month (rounded up)",
+    "amountAuto": "− amount discount {{qty}} pcs · {{customer}} (from settings)",
+    "amountManual": "− amount discount {{qty}} pcs · {{customer}} (own)"
   },
   "issues": {
     "title": "Messages",
@@ -230,7 +236,9 @@
     "flexActive": "Flexible price list: the full discounts would need a base price of {{base}}, but the highest price is {{max}} — prices were spread between the minimum price and {{max}}.",
     "flexSaleActive": "Flexible price list: sale prices were spread between the sale minimum and {{max}}.",
     "flexAtMinimum": "The flexible price list never goes below the minimum price — the highest price was raised to {{floor}}, so all regular prices equal the minimum.",
-    "flexLowRaised": "Flexible price list: the lowest price was raised to {{low}} (highest {{max}}) — discounts were reduced so the edited price fits."
+    "flexLowRaised": "Flexible price list: the lowest price was raised to {{low}} (highest {{max}}) — discounts were reduced so the edited price fits.",
+    "amountTierOrder": "The amount discount of the {{b}} pcs package is smaller than of {{a}} pcs ({{customer}}) — the larger package costs more per unit.",
+    "amountCustomerOrder": "“{{b}}” has a smaller amount discount than “{{a}}” ({{qty}} pcs package)."
   },
   "settings": {
     "costs": "Costs and profit",
@@ -288,7 +296,11 @@
     "addMonth": "Add month type",
     "newMonth": "new month",
     "fees": "Fees %",
-    "feesHint": "Of the gross price: marketplace, payments"
+    "feesHint": "Of the gross price: marketplace, payments",
+    "discountMode": "Package and customer discounts",
+    "discountModePercent": "percent",
+    "discountModeAmount": "amounts (PLN)",
+    "discountModeAmountHint": "One table of PLN amounts (net per unit) shared by all month types, sale included: price = month price − amount. The amounts are generated from the % discounts below, taken from the cheapest month's retail price — there they equal the settings, in dearer months they are a smaller percentage. Change any amount in the calculator."
   },
   "export": {
     "confirmErrors": "{{count}} prices are below the minimum. Export anyway?",
@@ -358,7 +370,8 @@
       "step": "Step",
       "value": "Value",
       "level": "Level",
-      "message": "Message"
+      "message": "Message",
+      "amount": "Amount discount"
     },
     "calc": {
       "fixedExact": "Fixed handling per unit (exact, before rounding)",
@@ -376,6 +389,19 @@
     "retailGross": "Retail price, gross",
     "retailBelowTop": "Below the base price (net, % of the base price)",
     "retailAmount": "Net discount / unit (PLN)",
-    "retailPct": "Discount % of retail price"
+    "retailPct": "Discount % of retail price",
+    "discountMode": "Package and customer discounts",
+    "amountsTitle": "Amount discounts (net per unit)",
+    "amountsManual": "Changed by hand"
+  },
+  "amounts": {
+    "title": "Amount discounts",
+    "hint": "Net amount per unit subtracted from the price of every month, sale included. Generated from the % discounts in the settings, taken from the cheapest month's retail price ({{month}}: {{retail}}). You can change any amount — the base price adjusts so the deepest combination still sits at the minimum price.",
+    "generated": "from settings",
+    "manual": "own: {{count}}",
+    "regenerate": "Generate again from settings",
+    "autoValue": "From settings: {{value}}",
+    "cellLabel": "Amount discount {{qty}} · {{customer}}",
+    "warnings": "warnings: {{count}}"
   }
 }

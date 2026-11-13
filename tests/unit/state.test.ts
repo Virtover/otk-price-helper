@@ -15,6 +15,7 @@ const base: AppState = {
   flexible: false,
   clearedOverrides: 0,
   priceView: 'price',
+  amounts: {},
 };
 
 const edited = reducer(reducer(base, { type: 'setRowOverride', key: 'k', value: 5n }), {
@@ -102,6 +103,34 @@ describe('unsaved indicator', () => {
   });
 });
 
+describe('amount discounts', () => {
+  it('set and clear manual amounts, dropping manual price edits like settings do', () => {
+    const set = reducer(edited, { type: 'setAmount', key: '300|w4', value: 400n });
+    expect(set.amounts).toEqual({ '300|w4': 400n });
+    expect(set.overrides).toEqual({ rows: {} });
+    expect(set.clearedOverrides).toBe(2);
+    expect(reducer(set, { type: 'setAmount', key: '300|w4' }).amounts).toEqual({});
+    expect(reducer(set, { type: 'resetAmounts' }).amounts).toEqual({});
+  });
+
+  it('keep manual amounts when the cost changes', () => {
+    const set = reducer(base, { type: 'setAmount', key: '300|w4', value: 400n });
+    expect(reducer(set, { type: 'setInput', field: 'cost', value: '12' }).amounts).toEqual({ '300|w4': 400n });
+  });
+
+  it('are remembered as strings and read back, skipping broken values', () => {
+    const store: Record<string, string> = {
+      'otk-price-helper.state.v1': JSON.stringify({ amounts: { '300|w4': '400', bad: 'x', neg: '-1' } }),
+    };
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null });
+    try {
+      expect(initialState().amounts).toEqual({ '300|w4': 400n });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('state remembered by an older app version', () => {
   it('migrates a v1 snapshot so unchanged settings are not shown as unsaved', () => {
     const v1 = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 1, vatBp: 800, months: { peakBp: 0, prePeakBp: [1000, 2000, 3000] } });
@@ -111,7 +140,7 @@ describe('state remembered by an older app version', () => {
     vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null });
     try {
       const state = initialState();
-      expect(state.config.schemaVersion).toBe(3);
+      expect(state.config.schemaVersion).toBe(4);
       expect(state.config.vatBp).toBe(800);
       expect(isDirty(state)).toBe(false);
     } finally {

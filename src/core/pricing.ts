@@ -4,6 +4,8 @@
  * The base price B is anchored so that the deepest regular (non-sale) discount
  * combination lands exactly on the minimum-profit floor F; every other row is
  * B × its multiplier, rounded up to the grosz. Net is the divisible price basis.
+ * In amount mode a row is its month's price ⌈B × month multiplier⌉ minus a PLN amount
+ * of its package × customer (§5.4).
  */
 import {
   type Rat,
@@ -23,6 +25,7 @@ import {
   sub,
 } from './rational';
 import type {
+  AmountMatrix,
   Config,
   Issue,
   MonthType,
@@ -41,6 +44,9 @@ import { MAX_COST_GR, hasErrors, validateConfig, validateInput } from './validat
 export const MAX_PRICE_GR = MAX_COST_GR;
 
 export const rowKey = (qty: bigint, customerId: string, month: MonthType) => `${qty}|${customerId}|${month}`;
+
+/** Key of a package × customer cell of the amount matrix. */
+export const amountKey = (qty: bigint, customerId: string) => `${qty}|${customerId}`;
 
 /** Discount in bp → price multiplier (500 bp → 0.95). */
 export const multiplierOf = (discountBp: number): Rat => sub(ONE, fromBp(discountBp));
@@ -65,6 +71,18 @@ export function baseForTarget(target: bigint, multiplier: Rat): bigint {
   return floorOf(div(rat(target - 1n), multiplier)) + 1n;
 }
 
+/** Price of a row at a base (regular or sale) without flexibility. */
+export function priceAtBase(row: PriceRow, base: bigint): bigint {
+  if (row.amountGr === undefined) return ceil(mul(rat(base), row.multiplier));
+  return ceil(mul(rat(base), row.monthMultiplier)) - row.amountGr;
+}
+
+/** Smallest base (regular or sale) that puts a row exactly on the target without flexibility. */
+export function baseForRow(row: PriceRow, target: bigint): bigint {
+  if (row.amountGr === undefined) return baseForTarget(target, row.multiplier);
+  return baseForTarget(target + row.amountGr, row.monthMultiplier);
+}
+
 /**
  * Overrides that move a row to the target price by shifting its base, so all
  * other rows sharing that base follow according to their discounts. Sale rows
@@ -79,16 +97,18 @@ export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrid
   const { [row.key]: _dropped, ...rows } = overrides.rows;
   const isSale = row.month === SALE;
   if (!list?.flex.requested) {
-    const base = baseForTarget(target, row.multiplier);
+    const base = baseForRow(row, target);
     return isSale ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
   }
   const shifted = isSale ? shiftFlexSale(row, target, overrides, rows, list) : shiftFlexRegular(row, target, overrides, rows, list);
   return shifted ?? { ...overrides, rows: { ...rows, [row.key]: target } };
 }
 
-/** Top price that puts a row on the target, with the spread bottom at `low`; undefined for the deepest row. */
-function topForTarget(target: bigint, m: Rat, low: Rat, needed: bigint, mDeep: Rat): bigint | undefined {
-  const nominal = baseForTarget(target, m);
+/**
+ * Top price that puts a row on the target, with the spread bottom at `low`; undefined for the deepest row.
+ * `nominal` is the base that reaches the target without flexibility.
+ */
+function topForTarget(nominal: bigint, target: bigint, m: Rat, low: Rat, needed: bigint, mDeep: Rat): bigint | undefined {
   if (nominal >= needed) return nominal;
   const pos = flexPosition(mDeep, m);
   if (pos.n === 0n) return undefined;
@@ -115,7 +135,8 @@ function shiftFlexRegular(
   const { flexLow: _low, ...rest } = overrides;
   const limit = list.input.maxPriceGr;
   if (limit === undefined || target <= priceAtTop(list, row, limit)) {
-    const top = topForTarget(target, row.multiplier, list.floor, list.baseCalculated, list.deepest.multiplier);
+    const nominal = baseForRow(row, target);
+    const top = topForTarget(nominal, target, row.multiplier, list.floor, list.baseCalculated, list.deepest.multiplier);
     return { ...rest, rows, base: top ?? ceil(list.floor) };
   }
   // Above what the limit allows with full discounts: top stays at the limit, the bottom rises.
@@ -133,7 +154,14 @@ function shiftFlexSale(
   const limit = list.input.maxPriceGr;
   if (limit === undefined || target <= priceAtTop(list, row, limit)) {
     let saleTop =
-      topForTarget(target, row.multiplier, list.sale.cost, list.sale.baseCalculated, list.sale.deepMultiplier) ??
+      topForTarget(
+        baseForRow(row, target),
+        target,
+        row.multiplier,
+        list.sale.cost,
+        list.sale.baseCalculated,
+        list.sale.deepMultiplier,
+      ) ??
       ceil(list.sale.cost);
     const saleFloor = ceil(list.sale.cost);
     if (saleTop < saleFloor) saleTop = saleFloor;
@@ -163,12 +191,12 @@ function linkedSaleTop(list: PriceList, top: bigint): bigint {
 export function priceAtTop(list: PriceList, row: PriceRow, top: bigint): bigint {
   if (row.month !== SALE) {
     return top >= list.baseCalculated
-      ? ceil(mul(rat(top), row.multiplier))
+      ? priceAtBase(row, top)
       : ceil(spreadPrice(list.floor, top, list.deepest.multiplier, row.multiplier));
   }
   const saleTop = linkedSaleTop(list, top);
   return saleTop >= list.sale.baseCalculated
-    ? ceil(mul(rat(saleTop), row.multiplier))
+    ? priceAtBase(row, saleTop)
     : ceil(spreadPrice(list.sale.cost, saleTop, list.sale.deepMultiplier, row.multiplier));
 }
 
@@ -216,6 +244,8 @@ export interface CalculateOptions {
   smartUpdates?: boolean;
   /** Spread prices between minimum and maximum price when discounts cannot fit under the maximum (default false). */
   flexible?: boolean;
+  /** Amount mode: manually set amounts (grosze) per amountKey; other cells are generated. */
+  amounts?: Record<string, bigint>;
 }
 
 /**
@@ -283,13 +313,20 @@ export function calculate(
   const deepTier = deepestBy(tiers, (t) => t.discountBp);
   const deepCustomer = deepestBy(config.customers, (cu) => cu.discountBp);
   const deepMonth = deepestBy(config.months, (m) => m.discountBp).id;
-  const deepMultiplier = product([
-    multiplierOf(deepTier.discountBp),
-    multiplierOf(deepCustomer.discountBp),
-    multiplierOf(monthDiscountBp(config, deepMonth)),
-  ]);
-  const baseExact = div(floor, deepMultiplier);
+  const deepMonthMultiplier = multiplierOf(monthDiscountBp(config, deepMonth));
+  const percentDeep = product([multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp), deepMonthMultiplier]);
+  const amounts =
+    config.discountMode === 'amount'
+      ? amountMatrix(config, tiers, floor, percentDeep, deepMonth, options.amounts)
+      : undefined;
+  // Amount mode: B = ⌈(F + largest amount) / cheapest month multiplier⌉ — the cheapest month's price
+  // minus the largest amount still reaches the minimum.
+  const baseExact = amounts ? div(add(floor, rat(amounts.max)), deepMonthMultiplier) : div(floor, percentDeep);
   const baseCalculated = ceil(baseExact);
+  // Amount mode: the deepest row's price at the calculated base, as a share of that base.
+  const deepMultiplier = amounts
+    ? rat(ceil(mul(rat(baseCalculated), deepMonthMultiplier)) - amounts.max, baseCalculated)
+    : percentDeep;
   if (baseCalculated > MAX_PRICE_GR) {
     return { ok: false, issues: [...issues, { level: 'error', code: 'outOfRange', path: 'input.costGr' }] };
   }
@@ -298,10 +335,12 @@ export function calculate(
   const base = baseOverridden ? overrides.base! : baseCalculated;
 
   // 5. Sale: deepest package × customer combination priced at s·K (after fees).
+  //    Amount mode: the sale base is that minimum plus the largest amount.
   const saleCost = div(mul(unitCost, fromBp(config.sale.factorBp)), keep);
-  const saleDeepMultiplier = mul(multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp));
-  const saleBaseExact = div(saleCost, saleDeepMultiplier);
+  const salePercentDeep = mul(multiplierOf(deepTier.discountBp), multiplierOf(deepCustomer.discountBp));
+  const saleBaseExact = amounts ? add(saleCost, rat(amounts.max)) : div(saleCost, salePercentDeep);
   const saleBaseCalculated = ceil(saleBaseExact);
+  const saleDeepMultiplier = amounts ? rat(saleBaseCalculated - amounts.max, saleBaseCalculated) : salePercentDeep;
   const saleBaseOverridden = overrides.saleBase !== undefined && overrides.saleBase > 0n;
   const saleBase = saleBaseOverridden ? overrides.saleBase! : saleBaseCalculated;
 
@@ -331,8 +370,10 @@ export function calculate(
   };
   const regularLow = raise(floor, overrides.flexLow, regularTop);
   const saleLow = raise(saleCost, overrides.flexSaleLow, saleTop);
-  const regularNeeded = ceil(div(regularLow, deepMultiplier));
-  const saleNeeded = ceil(div(saleLow, saleDeepMultiplier));
+  // The calculated base never needs flexibility (amount mode: the linear estimate alone may be lower).
+  const atLeast = (a: bigint, b: bigint) => (a > b ? a : b);
+  const regularNeeded = atLeast(ceil(div(regularLow, deepMultiplier)), baseCalculated);
+  const saleNeeded = atLeast(ceil(div(saleLow, saleDeepMultiplier)), saleBaseCalculated);
   const canSpread = (top: bigint, needed: bigint, low: Rat) => top < needed && !lt(rat(top), low);
   const flexActive = flexible && canSpread(regularTop, regularNeeded, regularLow);
   const saleFlexActive = flexible && canSpread(saleTop, saleNeeded, saleLow);
@@ -343,9 +384,13 @@ export function calculate(
     for (const customer of config.customers) {
       for (const month of monthIds(config)) {
         const isSale = month === SALE;
-        const parts = [multiplierOf(tier.discountBp), multiplierOf(customer.discountBp)];
-        if (!isSale) parts.push(multiplierOf(monthDiscountBp(config, month)));
-        const multiplier = product(parts);
+        const monthMultiplier = isSale ? ONE : multiplierOf(monthDiscountBp(config, month));
+        const amountGr = amounts?.cells[amountKey(tier.qty, customer.id)]!.gr;
+        const calcBase = isSale ? saleBaseCalculated : baseCalculated;
+        const multiplier =
+          amountGr === undefined
+            ? product([multiplierOf(tier.discountBp), multiplierOf(customer.discountBp), monthMultiplier])
+            : rat(ceil(mul(rat(calcBase), monthMultiplier)) - amountGr, calcBase);
         const key = rowKey(tier.qty, customer.id, month);
 
         // With smart updates off the derived columns keep their pre-edit values.
@@ -354,7 +399,9 @@ export function calculate(
         const refBase = flexed ? (isSale ? saleTop : regularTop) : isSale ? saleRef : baseUsed;
         const exactNet = flexed
           ? spreadPrice(isSale ? saleLow : regularLow, refBase, isSale ? saleDeepMultiplier : deepMultiplier, multiplier)
-          : mul(rat(refBase), multiplier);
+          : amountGr === undefined
+            ? mul(rat(refBase), multiplier)
+            : rat(ceil(mul(rat(refBase), monthMultiplier)) - amountGr);
         const calculatedNet = ceil(exactNet);
         const overrideNet = overrides.rows[key];
         const shownNet = overrideNet ?? calculatedNet;
@@ -387,6 +434,8 @@ export function calculate(
           customerId: customer.id,
           month,
           multiplier,
+          monthMultiplier,
+          amountGr,
           netUnit: shownNet,
           grossUnit,
           netTotal,
@@ -410,6 +459,7 @@ export function calculate(
   }
 
   // 8. Result-level feedback.
+  if (amounts) issues.push(...amountOrderIssues(config, tiers, amounts));
   if (gt(rat(fixedPerUnit), c)) {
     issues.push({
       level: 'warning',
@@ -497,6 +547,7 @@ export function calculate(
       base: saleBase,
       baseOverridden: saleBaseOverridden,
     },
+    amounts,
     fees: { rate: feeRate, keep },
     flex: {
       requested: flexible,
@@ -517,4 +568,67 @@ export function calculate(
     issues,
   };
   return { ok: true, list };
+}
+
+/**
+ * Amount mode (§5.4): one PLN amount per package × customer. Generated amounts apply the configured
+ * package and customer discounts to the cheapest month's retail price at the percent-mode base, so in
+ * that month they equal the % discounts and in dearer months they are a smaller share of the price.
+ * Manual amounts (≥ 0) replace generated ones cell by cell.
+ */
+function amountMatrix(
+  config: Config,
+  tiers: Tier[],
+  floor: Rat,
+  percentDeep: Rat,
+  refMonth: MonthType,
+  manual: Record<string, bigint> = {},
+): AmountMatrix {
+  const refRetail = ceil(mul(rat(ceil(div(floor, percentDeep))), multiplierOf(monthDiscountBp(config, refMonth))));
+  const cells: AmountMatrix['cells'] = {};
+  let max = 0n;
+  for (const tier of tiers) {
+    for (const customer of config.customers) {
+      const key = amountKey(tier.qty, customer.id);
+      const discount = sub(ONE, mul(multiplierOf(tier.discountBp), multiplierOf(customer.discountBp)));
+      // Rounded down: a generated amount never exceeds the % discount.
+      const auto = floorOf(mul(rat(refRetail), discount));
+      const own = manual[key];
+      const isManual = own !== undefined && own >= 0n;
+      const gr = isManual ? own : auto;
+      cells[key] = { gr, auto, manual: isManual };
+      if (gr > max) max = gr;
+    }
+  }
+  return { refMonth, refRetail, cells, max };
+}
+
+/** Amounts that shrink towards a larger package or a later customer type (warning: the price rises there). */
+function amountOrderIssues(config: Config, tiers: Tier[], amounts: AmountMatrix): Issue[] {
+  const issues: Issue[] = [];
+  const gr = (qty: bigint, id: string) => amounts.cells[amountKey(qty, id)]!.gr;
+  config.customers.forEach((customer, ci) => {
+    tiers.forEach((tier, ti) => {
+      const path = `amounts.${amountKey(tier.qty, customer.id)}`;
+      const prevTier = tiers[ti - 1];
+      if (prevTier && gr(tier.qty, customer.id) < gr(prevTier.qty, customer.id)) {
+        issues.push({
+          level: 'warning',
+          code: 'amountTierOrder',
+          params: { a: prevTier.qty.toString(), b: tier.qty.toString(), customer: { text: customer.label } },
+          path,
+        });
+      }
+      const prevCustomer = config.customers[ci - 1];
+      if (prevCustomer && gr(tier.qty, customer.id) < gr(tier.qty, prevCustomer.id)) {
+        issues.push({
+          level: 'warning',
+          code: 'amountCustomerOrder',
+          params: { a: { text: prevCustomer.label }, b: { text: customer.label }, qty: tier.qty.toString() },
+          path,
+        });
+      }
+    });
+  });
+  return issues;
 }

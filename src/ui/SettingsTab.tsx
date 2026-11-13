@@ -367,6 +367,26 @@ export function SettingsTab({ state, dispatch }: Props) {
             ]}
           />
         </Group>
+        <Stack gap={4}>
+          <Group gap="sm">
+            <Text size="sm">{t('settings.discountMode')}:</Text>
+            <SegmentedControl
+              size="xs"
+              value={config.discountMode}
+              data-testid="discount-kind"
+              onChange={(v) => update((c) => (c.discountMode = v === 'amount' ? 'amount' : 'percent'))}
+              data={[
+                { value: 'percent', label: t('settings.discountModePercent') },
+                { value: 'amount', label: t('settings.discountModeAmount') },
+              ]}
+            />
+          </Group>
+          {config.discountMode === 'amount' && (
+            <Text size="xs" c="dimmed" maw={760}>
+              {t('settings.discountModeAmountHint')}
+            </Text>
+          )}
+        </Stack>
 
         <Group gap={40} align="flex-start">
           <Stack gap="xs">

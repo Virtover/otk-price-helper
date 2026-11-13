@@ -36,6 +36,7 @@ Languages: **Polish (default) / English**, switchable at runtime.
 | rodzaj klienta | customer type | — | retail / wholesale 1–4 |
 | typ miesiąca | month type | — | user-defined list (default: peak, pre-peak 1–3) + built-in sale |
 | WYPRZEDAŻ | sale | `s` | sale price factor, applied to `K` |
+| rabat kwotowy | amount discount | `A` | amount mode: PLN off per unit for a package × customer, the same in every month type |
 
 ---
 
@@ -115,6 +116,10 @@ highlight the "current" column. Peak months: **June, December**. Proposed defaul
 | Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | sale | sale | pre 3 | pre 2 | pre 1 | **peak** | sale | sale | pre 3 | pre 2 | pre 1 | **peak** |
+
+**Discount kind** (`discountMode`, default **percent**): package and customer discounts are either
+% (stacked multiplicatively, as above) or **PLN amounts** — one package × customer matrix shared by all
+month types, sale included (§5.4). In amount mode the % above only generate the amounts.
 
 ### 4.3 Sale (WYPRZEDAŻ)
 
@@ -213,6 +218,33 @@ by their package and customer multipliers. Month discounts do not apply in sale.
 - I7. With fees, profit after fees on every regular row `≥` minimum profit.
 - I8. Flexible mode: every regular price in `[F, X]`, still monotonic in the nominal discount.
 - I6. Results are independent of order of discount application.
+- I9. Amount mode: every price is its month price minus its amount; I1, I2, I5 hold; generated amounts keep I4.
+
+### 5.4 Amount discounts (`discountMode: "amount"`)
+
+Month types stay %, package × customer discounts become a matrix of net PLN amounts `A(t,k)` per unit:
+
+- **Generated** (default): from the configured %, taken from the retail price of the **cheapest regular
+  month** `M_d` (largest month discount) at the percent-mode base:
+  `R_d = ⌈⌈F / M_deep⌉ · m_month(M_d)⌉`, `A(t,k) = ⌊R_d · (1 − m_t · m_k)⌋`.
+  In `M_d` the amounts equal the % discounts (up to rounding down); in dearer months they are a smaller %.
+- **Manual**: any cell can be set by hand (≥ 0) in the calculator; typing the generated value back, or
+  "Generate again from settings", returns to it. Manual amounts belong to the product being priced, not to
+  the config file: they are remembered with the app state, kept when cost or quantity change, and they drop
+  manual price edits like a settings change does. A larger package or a later customer type with a smaller
+  amount is a **warning**.
+- **Base**: `B = ⌈(F + A_max) / m_month(M_d)⌉`, so the cheapest month minus the largest amount still
+  reaches the minimum (deepest row `< 2 gr` above `F`).
+- **Rows**: `net_u = ⌈B · m_month⌉ − A(t,k)`; sale: `B_sale = ⌈S⌉ + A_max`, `net_u = B_sale − A(t,k)`.
+- **Shift edits** move `B` (or `B_sale`) so the edited row lands on the price: `B = baseForTarget(target + A, m_month)`;
+  the amounts stay.
+- **Flexible price list**: each row's position is its price at the calculated base divided by that base
+  (its "multiplier"), and prices are spread between `F` and the top exactly as in §5.2 step 12 — the
+  amounts shrink proportionally.
+
+Defaults, `c = 10.00`, `N = 1000`: `R_d = ⌈22.57 · 0.70⌉ = 15.80`, `A(300, hurt 4) = ⌊15.80 · 0.2088⌋ = 3.29`,
+`B = ⌈(12.50 + 3.29) / 0.70⌉ = 22.56`; 300 · hurt 4 is 22.56 − 3.29 = 19.27 in the peak (14.6 %) and
+15.80 − 3.29 = 12.51 in pre-peak 3 (20.8 %); sale base 11.50 + 3.29 = 14.79.
 
 ---
 
@@ -315,7 +347,8 @@ Every error/warning must point to **what** to change (field link/focus), not jus
 
 - **Tab 1 — Calculator** (default): 3 inputs → summary header → matrix. Button "Export XLSX"; toggle "Elastyczny cennik" (with tooltip) next to it.
   Toggle "Show details" reveals flat table, overrides, smart-updates checkbox, breakdown panel.
-- **Tab 2 — Settings**: sections 4.1–4.3, %/multiplier toggles, calendar (collapsed "advanced"),
+- Amount mode: the calculator shows the editable amount matrix ("Rabaty kwotowe") above the price matrix.
+- **Tab 2 — Settings**: sections 4.1–4.3 (with the % / amount switch), %/multiplier toggles, calendar (collapsed "advanced"),
   Save / Load / Reset to defaults, unsaved-changes indicator.
 - Language switch in the header. Last-used config and language remembered between sessions.
 
@@ -333,7 +366,7 @@ percentages as % format. Default filename: `<product-name>_<YYYY-MM-DD>.xlsx`.
 | **Wszystkie kombinacje** | technical | every row: quantities, prices, totals, multiplier, nominal & applied discount, fee, profit, status and flags (edited, stale, above max, flexed, shortfall), row key; frozen header, autofilter |
 | **Rabaty – szczegóły** (Discounts – details) | both | per row: package, customer and month discount, nominal total, applied discount, difference — always present, shows the compression in flexible mode |
 | **Obliczenia** | technical | the calculation chain from purchase cost to base / sale base, with exact intermediate values |
-| **Ustawienia** | audit | snapshot of the settings used (costs, VAT, fees, packages, customer and month types, calendar) |
+| **Ustawienia** | audit | snapshot of the settings used (costs, VAT, fees, discount kind, packages, customer and month types, calendar; amount mode: the amount matrix, manual cells marked) |
 | **Uwagi** | both | the messages shown in the app at export time |
 
 Export asks for confirmation when prices are below the minimum or rows are not recalculated.
@@ -346,7 +379,7 @@ JSON, with schema version for migration:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "handling": { "percentBp": 1000, "fixedGr": 50000 },
   "minProfit": { "percentBp": 1000, "fixedGr": 0 },
   "vatBp": 2300,
@@ -372,12 +405,14 @@ JSON, with schema version for migration:
   ],
   "sale": { "factorBp": 10000 },
   "calendar": ["sale","sale","pre3","pre2","pre1","peak","sale","sale","pre3","pre2","pre1","peak"],
+  "discountMode": "percent",
   "ui": { "discountInput": "percent" }
 }
 ```
 
 Validated with a schema on load; invalid files never partially apply. Older files are migrated
-automatically: v1 (fixed `{ peakBp, prePeakBp[3] }`) → month-type list with the same ids; v2 → `fees: 0`.
+automatically: v1 (fixed `{ peakBp, prePeakBp[3] }`) → month-type list with the same ids; v2 → `fees: 0`;
+v3 → `discountMode: "percent"`.
 
 ---
 

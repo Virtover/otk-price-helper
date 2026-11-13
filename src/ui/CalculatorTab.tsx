@@ -7,6 +7,7 @@ import { calculate, clampToFlex, monthIds, shiftOverrides } from '../core/pricin
 import { ceil } from '../core/rational';
 import type { MonthType, PriceRow, ProductInput } from '../core/types';
 import { confirmDialog, saveBinaryFile } from '../lib/fileio';
+import { AmountMatrix } from './components/AmountMatrix';
 import { Breakdown } from './components/Breakdown';
 import { IssueList } from './components/IssueList';
 import { PriceMatrix } from './components/PriceMatrix';
@@ -48,8 +49,9 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     () => (product ? calculate(product, config, state.overrides, {
             smartUpdates: state.smartUpdates,
             flexible: state.flexible,
+            amounts: state.amounts,
           }) : undefined),
-    [input.cost, input.qty, maxPriceGr, config, state.overrides, state.smartUpdates, state.flexible],
+    [input.cost, input.qty, maxPriceGr, config, state.overrides, state.smartUpdates, state.flexible, state.amounts],
   );
   const allIssues = result ? (result.ok ? result.list.issues : result.issues) : [];
   const fieldError = (path: string, parsed: ReturnType<typeof parseMoney>, raw: string) => {
@@ -280,6 +282,15 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                 <Text size="sm" c={exportMessage.ok ? 'teal' : 'red'} data-testid="export-message">
                   {exportMessage.text}
                 </Text>
+              )}
+              {list.amounts && (
+                <AmountMatrix
+                  list={{ ...list, amounts: list.amounts }}
+                  config={config}
+                  lang={lang}
+                  onSet={(key, value) => dispatch({ type: 'setAmount', key, value })}
+                  onReset={() => dispatch({ type: 'resetAmounts' })}
+                />
               )}
               <PriceMatrix
                 list={list}

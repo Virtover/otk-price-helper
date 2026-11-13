@@ -29,6 +29,8 @@ const migrations: Record<number, Migration> = {
   },
   // v2 → v3: price-proportional fees, none by default.
   2: (old) => ({ ...old, fees: { percentBp: 0 } }),
+  // v3 → v4: discounts in PLN amounts are optional; existing files keep % discounts.
+  3: (old) => ({ ...old, discountMode: 'percent' }),
 };
 
 /** Parses a config file. Never returns a partially applied config. */

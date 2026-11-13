@@ -18,8 +18,8 @@ describe('config file', () => {
   });
 
   it('rejects newer versions', () => {
-    const text = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 4 });
-    expect(parseConfigFile(text)).toMatchObject({ ok: false, error: 'newerVersion', details: ['4'] });
+    const text = JSON.stringify({ ...DEFAULT_CONFIG, schemaVersion: 5 });
+    expect(parseConfigFile(text)).toMatchObject({ ok: false, error: 'newerVersion', details: ['5'] });
   });
 
   it('migrates v1 files (fixed peak + 3 pre-peaks) to editable month types', () => {
@@ -27,7 +27,7 @@ describe('config file', () => {
     const r = parseConfigFile(JSON.stringify(v1));
     expect(r).toMatchObject({ ok: true, migratedFrom: 1 });
     if (r.ok) {
-      expect(r.config.schemaVersion).toBe(3);
+      expect(r.config.schemaVersion).toBe(4);
       expect(r.config.fees).toEqual({ percentBp: 0 });
       expect(r.config.months.map((m) => [m.id, m.label.pl, m.discountBp])).toEqual([
         ['peak', 'Szczyt', 0],
@@ -42,7 +42,13 @@ describe('config file', () => {
   it('migrates v2 files by adding zero fees', () => {
     const { fees: _fees, ...rest } = DEFAULT_CONFIG;
     const r = parseConfigFile(JSON.stringify({ ...rest, schemaVersion: 2 }));
-    expect(r).toMatchObject({ ok: true, migratedFrom: 2, config: { fees: { percentBp: 0 }, schemaVersion: 3 } });
+    expect(r).toMatchObject({ ok: true, migratedFrom: 2, config: { fees: { percentBp: 0 }, schemaVersion: 4 } });
+  });
+
+  it('migrates v3 files to percent discounts', () => {
+    const { discountMode: _mode, ...rest } = DEFAULT_CONFIG;
+    const r = parseConfigFile(JSON.stringify({ ...rest, schemaVersion: 3 }));
+    expect(r).toMatchObject({ ok: true, migratedFrom: 3, config: { discountMode: 'percent', schemaVersion: 4 } });
   });
 
   it('rejects a broken v1 file instead of half-migrating it', () => {

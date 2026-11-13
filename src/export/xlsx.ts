@@ -9,7 +9,7 @@
  */
 import ExcelJS from 'exceljs';
 import type { Locale } from '../core/money';
-import { monthDiscountBp, monthIds } from '../core/pricing';
+import { amountKey, monthDiscountBp, monthIds, multiplierOf } from '../core/pricing';
 import { type Rat, mul, rat, roundHalf } from '../core/rational';
 import { monthRetail, retailDiscount } from '../core/retail';
 import { type Config, type Issue, type PriceList, type PriceRow, type RowStatus, SALE } from '../core/types';
@@ -114,6 +114,7 @@ function priceListSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
   ];
   if (list.input.maxPriceGr !== undefined) facts.push([t('input.maxPrice'), pln(list.input.maxPriceGr), MONEY]);
   facts.push([t('flex.label'), list.flex.active || list.flex.saleActive ? t('flex.badge') : yesNo(ctx, false)]);
+  if (list.amounts) facts.push([t('xlsx.discountMode'), t('settings.discountModeAmount')]);
   for (const [label, value, fmt] of facts) {
     const r = ws.addRow([label, value]);
     r.getCell(1).font = { color: { argb: 'FF595959' } };
@@ -328,6 +329,7 @@ function discountsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
       t('xlsx.cols.difference'),
       t('columns.netUnit'),
       t('xlsx.cols.flexed'),
+      t('xlsx.cols.amount'),
     ]),
   );
   const tierBp = new Map(list.tiers.map((tier) => [tier.qty, tier.discountBp]));
@@ -337,21 +339,24 @@ function discountsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
       Number(r.qty),
       cust.label[ctx.lang],
       monthName(ctx, r.month),
-      bp(tierBp.get(r.qty) ?? 0),
-      bp(cust.discountBp),
+      // Amount mode: the % discounts only generated the amounts.
+      list.amounts ? '—' : bp(tierBp.get(r.qty) ?? 0),
+      list.amounts ? '—' : bp(cust.discountBp),
       r.month === SALE ? '—' : bp(monthDiscountBp(config, r.month)),
       frac(r.nominalDiscount),
       frac(r.effectiveDiscount),
       frac(r.nominalDiscount) - frac(r.effectiveDiscount),
       pln(r.netUnit),
       yesNo(ctx, r.flexed),
+      r.amountGr === undefined ? null : pln(r.amountGr),
     ]);
     for (const col of [4, 5, 6, 7, 8, 9]) line.getCell(col).numFmt = PCT;
     line.getCell(10).numFmt = MONEY;
+    line.getCell(12).numFmt = MONEY;
     if (r.flexed) line.getCell(8).fill = solidFill('FFDDF4EA');
   }
-  [9, 14, 16, 14, 14, 14, 16, 16, 12, 13, 11].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: 11 } };
+  [9, 14, 16, 14, 14, 14, 16, 16, 12, 13, 11, 14].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: 12 } };
 }
 
 // ---------------------------------------------------------------- 4. calculation chain
@@ -361,6 +366,7 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
   title(ws, t('xlsx.sheets.calculation'));
   styleHeader(ws.addRow([t('xlsx.cols.step'), t('xlsx.cols.value')]));
   const deepCustomer = customerName(ctx, list.deepest.customerId);
+  const amounts = list.amounts;
   const steps: [string, number | string, string?][] = [
     [t('breakdown.purchaseCost'), pln(list.input.costGr), MONEY],
     [t('breakdown.handlingPercent', { pct: `${config.handling.percentBp / 100} %` }), plnRat(list.handlingPercent), MONEY],
@@ -381,16 +387,28 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
     ],
     [t('xlsx.calc.feeRate'), frac(list.fees.rate), PCT],
     [t('breakdown.floor'), plnPrecise(list.floor), MONEY_PRECISE],
-    [
-      t('breakdown.deepMultiplier', {
-        qty: list.deepest.tier.qty.toString(),
-        customer: deepCustomer,
-        month: monthName(ctx, list.deepest.month),
-      }),
-      mult(list.deepest.multiplier),
-      MULT,
-    ],
-    [t('breakdown.baseExact'), plnPrecise(list.baseExact), MONEY_PRECISE],
+    ...(amounts
+      ? ([
+          [t('breakdown.amountMax'), pln(amounts.max), MONEY],
+          [
+            t('breakdown.amountDeepMonth', { month: monthName(ctx, amounts.refMonth) }),
+            mult(multiplierOf(monthDiscountBp(config, amounts.refMonth))),
+            MULT,
+          ],
+          [t('breakdown.amountBaseExact'), plnPrecise(list.baseExact), MONEY_PRECISE],
+        ] as [string, number, string][])
+      : ([
+          [
+            t('breakdown.deepMultiplier', {
+              qty: list.deepest.tier.qty.toString(),
+              customer: deepCustomer,
+              month: monthName(ctx, list.deepest.month),
+            }),
+            mult(list.deepest.multiplier),
+            MULT,
+          ],
+          [t('breakdown.baseExact'), plnPrecise(list.baseExact), MONEY_PRECISE],
+        ] as [string, number, string][])),
     [t(list.baseOverridden ? 'breakdown.baseOverride' : 'breakdown.base'), pln(list.base), MONEY],
   ];
   if (list.input.maxPriceGr !== undefined) steps.push([t('input.maxPrice'), pln(list.input.maxPriceGr), MONEY]);
@@ -399,8 +417,12 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
   steps.push(
     [t('breakdown.saleFactor'), bp(config.sale.factorBp), PCT],
     [t('breakdown.saleCost'), plnPrecise(list.sale.cost), MONEY_PRECISE],
-    [t('breakdown.saleDeepMultiplier'), mult(list.sale.deepMultiplier), MULT],
-    [t('breakdown.saleBaseExact'), plnPrecise(list.sale.baseExact), MONEY_PRECISE],
+    ...((amounts
+      ? [[t('breakdown.amountMax'), pln(amounts.max), MONEY]]
+      : [
+          [t('breakdown.saleDeepMultiplier'), mult(list.sale.deepMultiplier), MULT],
+          [t('breakdown.saleBaseExact'), plnPrecise(list.sale.baseExact), MONEY_PRECISE],
+        ]) as [string, number, string][]),
     [t(list.sale.baseOverridden ? 'breakdown.saleBaseOverride' : 'breakdown.saleBase'), pln(list.sale.base), MONEY],
     [t('summary.retailProfit'), frac(list.retailProfitPct), PCT],
   );
@@ -414,7 +436,7 @@ function calculationSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
 
 // ---------------------------------------------------------------- 5. settings
 function settingsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
-  const { config, t } = ctx;
+  const { list, config, t } = ctx;
   const ws = wb.addWorksheet(t('xlsx.sheets.settings'));
   title(ws, t('xlsx.sheets.settings'));
   const section = (name: string) => {
@@ -433,6 +455,11 @@ function settingsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
   ];
   for (const [label, value, fmt] of costs) ws.addRow([label, value]).getCell(2).numFmt = fmt;
 
+  ws.addRow([
+    t('settings.discountMode'),
+    t(config.discountMode === 'amount' ? 'settings.discountModeAmount' : 'settings.discountModePercent'),
+  ]);
+
   section(t('settings.packages'));
   styleHeader(ws.addRow([t('settings.packageQty'), t('settings.discount')]));
   for (const p of [...config.packages].sort((a, b) => a.qty - b.qty)) {
@@ -448,6 +475,20 @@ function settingsSheet(wb: ExcelJS.Workbook, ctx: XlsxContext) {
     for (const item of config[kind]) {
       ws.addRow([item.label.pl, item.label.en, bp(item.discountBp)]).getCell(3).numFmt = PCT;
     }
+  }
+
+  if (list.amounts) {
+    section(t('xlsx.amountsTitle'));
+    styleHeader(ws.addRow([t('matrix.package'), ...config.customers.map((c) => c.label[ctx.lang])]));
+    for (const tier of list.tiers) {
+      const cells = config.customers.map((c) => list.amounts!.cells[amountKey(tier.qty, c.id)]!);
+      const line = ws.addRow([tierName(ctx, tier.qty), ...cells.map((c) => pln(c.gr))]);
+      cells.forEach((c, i) => {
+        line.getCell(2 + i).numFmt = MONEY;
+        if (c.manual) line.getCell(2 + i).fill = solidFill(STATUS_FILL.override!);
+      });
+    }
+    ws.addRow([null, t('xlsx.amountsManual')]).getCell(2).fill = solidFill(STATUS_FILL.override!);
   }
 
   section(t('settings.calendar'));

@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { confirmDialog, isTauri } from '../lib/fileio';
 import { CalculatorTab } from './CalculatorTab';
+import { REVEAL_AMOUNTS } from './components/AmountMatrix';
 import { SettingsTab } from './SettingsTab';
 import { fieldId } from './format';
 import { isDirty, useAppState } from './state';
@@ -59,7 +60,9 @@ export function App() {
 
   /** Switches to the tab holding the field and focuses it. */
   const goTo = (path: string) => {
-    setTab(path.startsWith('input.') ? 'calculator' : 'settings');
+    const amount = path.startsWith('amounts.');
+    setTab(path.startsWith('input.') || amount ? 'calculator' : 'settings');
+    if (amount) window.dispatchEvent(new Event(REVEAL_AMOUNTS));
     setTimeout(() => {
       const el = document.getElementById(fieldId(path));
       el?.scrollIntoView({ block: 'center', behavior: 'smooth' });

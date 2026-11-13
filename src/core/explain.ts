@@ -60,6 +60,8 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
     params: { fee: { pct: fromBp(config.fees.percentBp) }, vat: { pct: fromBp(config.vatBp) } },
   };
   const flexTopStep = (): Step => ({ key: 'flexTop', value: { money: isSale ? list.flex.saleTop : list.flex.top } });
+  const amounts = list.amounts;
+  const amountMaxStep = (): Step => ({ key: 'amountMax', value: { money: amounts!.max } });
 
   let refBase: bigint;
   if (isSale) {
@@ -67,8 +69,12 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
     if (hasFee) steps.push(feeStep);
     steps.push(
       { key: 'saleCost', value: { moneyRat: list.sale.cost } },
-      { key: 'saleDeepMultiplier', value: { mult: list.sale.deepMultiplier } },
-      { key: 'saleBaseExact', value: { moneyPrecise: list.sale.baseExact } },
+      ...(amounts
+        ? [amountMaxStep()]
+        : [
+            { key: 'saleDeepMultiplier', value: { mult: list.sale.deepMultiplier } },
+            { key: 'saleBaseExact', value: { moneyPrecise: list.sale.baseExact } },
+          ]),
       { key: list.sale.baseOverridden && !list.flex.requested ? 'saleBaseOverride' : 'saleBase', value: { money: list.flex.requested ? list.sale.baseCalculated : list.sale.base } },
     );
     if (list.flex.requested) {
@@ -94,16 +100,28 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
       },
       ...(hasFee ? [feeStep] : []),
       { key: 'floor', value: { moneyRat: list.floor } },
-      {
-        key: 'deepMultiplier',
-        value: { mult: list.deepest.multiplier },
-        params: {
-          qty: list.deepest.tier.qty.toString(),
-          customer: { text: config.customers.find((cu) => cu.id === list.deepest.customerId)!.label },
-          month: monthParam(config, list.deepest.month),
-        },
-      },
-      { key: 'baseExact', value: { moneyPrecise: list.baseExact } },
+      ...(amounts
+        ? [
+            amountMaxStep(),
+            {
+              key: 'amountDeepMonth',
+              value: { mult: multiplierOf(monthDiscountBp(config, amounts.refMonth)) },
+              params: { month: monthParam(config, amounts.refMonth) },
+            },
+            { key: 'amountBaseExact', value: { moneyPrecise: list.baseExact } },
+          ]
+        : [
+            {
+              key: 'deepMultiplier',
+              value: { mult: list.deepest.multiplier },
+              params: {
+                qty: list.deepest.tier.qty.toString(),
+                customer: { text: config.customers.find((cu) => cu.id === list.deepest.customerId)!.label },
+                month: monthParam(config, list.deepest.month),
+              },
+            },
+            { key: 'baseExact', value: { moneyPrecise: list.baseExact } },
+          ]),
       { key: list.baseOverridden ? 'baseOverride' : 'base', value: { money: list.base } },
     );
     if (row.flexed) steps.push(flexTopStep());
@@ -112,14 +130,16 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
 
   const tier = list.tiers.find((t) => t.qty === row.qty)!;
   const customer = config.customers.find((cu) => cu.id === row.customerId)!;
-  steps.push(
-    { key: 'tierMultiplier', value: { mult: multiplierOf(tier.discountBp) }, params: { qty: row.qty.toString() } },
-    {
-      key: 'customerMultiplier',
-      value: { mult: multiplierOf(customer.discountBp) },
-      params: { customer: { text: customer.label } },
-    },
-  );
+  if (row.amountGr === undefined) {
+    steps.push(
+      { key: 'tierMultiplier', value: { mult: multiplierOf(tier.discountBp) }, params: { qty: row.qty.toString() } },
+      {
+        key: 'customerMultiplier',
+        value: { mult: multiplierOf(customer.discountBp) },
+        params: { customer: { text: customer.label } },
+      },
+    );
+  }
   if (!isSale) {
     steps.push({
       key: 'monthMultiplier',
@@ -128,6 +148,19 @@ export function explainRow(list: PriceList, row: PriceRow, config: Config): Step
     });
   }
   let netExact = mul(rat(refBase), row.multiplier);
+  if (row.amountGr !== undefined) {
+    // Amount mode: the month's price minus this package × customer amount (same in every month).
+    const monthPrice = ceil(mul(rat(refBase), row.monthMultiplier));
+    if (!row.flexed) {
+      steps.push({ key: 'amountMonthPrice', value: { money: monthPrice } });
+      netExact = rat(monthPrice - row.amountGr);
+    }
+    steps.push({
+      key: amounts!.cells[`${row.qty}|${row.customerId}`]!.manual ? 'amountManual' : 'amountAuto',
+      value: { money: row.amountGr },
+      params: { qty: row.qty.toString(), customer: { text: customer.label } },
+    });
+  }
   if (row.flexed) {
     const mDeep = isSale ? list.sale.deepMultiplier : list.deepest.multiplier;
     const low = isSale ? list.flex.saleLow : list.flex.low;

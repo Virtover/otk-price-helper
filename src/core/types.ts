@@ -25,8 +25,11 @@ export const SALE = 'sale';
 /** Id of a regular month type, or SALE. */
 export type MonthType = string;
 
+/** How package and customer discounts are given: % of the price, or PLN amounts (SPEC §5.4). */
+export type DiscountMode = 'percent' | 'amount';
+
 export interface Config {
-  schemaVersion: 3;
+  schemaVersion: 4;
   handling: { percentBp: number; fixedGr: number };
   minProfit: { percentBp: number; fixedGr: number };
   vatBp: number;
@@ -40,6 +43,8 @@ export interface Config {
   sale: { factorBp: number };
   /** Month type id (or SALE) for each calendar month, January first. */
   calendar: MonthType[];
+  /** Package × customer discounts in %, or as one matrix of PLN amounts shared by all month types. */
+  discountMode: DiscountMode;
   ui: { discountInput: 'percent' | 'multiplier' };
 }
 
@@ -96,8 +101,15 @@ export interface PriceRow {
   qty: bigint;
   customerId: string;
   month: MonthType;
-  /** Combined nominal price multiplier. */
+  /**
+   * Combined nominal price multiplier. Amount mode: the row's price at the calculated base
+   * divided by that base (its position used by shifting and the flexible price list).
+   */
   multiplier: Rat;
+  /** Month type multiplier (1 for sale). */
+  monthMultiplier: Rat;
+  /** Amount mode: PLN discount of this package × customer, net per unit, grosze. */
+  amountGr?: bigint;
   netUnit: bigint;
   grossUnit: bigint;
   netTotal: bigint;
@@ -122,6 +134,25 @@ export interface PriceRow {
   feeUnit: Rat;
   /** Price was spread between minimum and maximum by the flexible mode. */
   flexed: boolean;
+}
+
+export interface AmountCell {
+  /** Amount used, grosze. */
+  gr: bigint;
+  /** Amount generated from the configured % discounts. */
+  auto: bigint;
+  manual: boolean;
+}
+
+/** Amount mode: one PLN amount per package × customer (key `qty|customerId`), the same in every month type. */
+export interface AmountMatrix {
+  /** Cheapest regular month type: generated amounts are its retail price × the configured discounts. */
+  refMonth: MonthType;
+  /** Retail price of refMonth at the percent-mode base, grosze. */
+  refRetail: bigint;
+  cells: Record<string, AmountCell>;
+  /** Largest amount (the deepest combination). */
+  max: bigint;
 }
 
 export interface Tier {
@@ -158,6 +189,8 @@ export interface PriceList {
     base: bigint;
     baseOverridden: boolean;
   };
+  /** Amount mode only. */
+  amounts?: AmountMatrix;
   /** Fee as a fraction of the NET price (fee % · (1 + VAT)) and the share the shop keeps (1 − rate). */
   fees: { rate: Rat; keep: Rat };
   /**
