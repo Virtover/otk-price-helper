@@ -5,7 +5,8 @@ import { type Locale, formatMoneyInput, parseMoney } from '../../core/money';
 import { unitForPackageTotal } from '../../core/pricing';
 import { type MonthRetail, retailDiscount } from '../../core/retail';
 import type { PriceRow } from '../../core/types';
-import { money, moneyOff, pctOff } from '../format';
+import { money, moneyOff, pctOff, scrubMoney } from '../format';
+import { nudged, scrubStep, startScrub } from '../scrub';
 
 /** Adjusts a requested unit price to the allowed range; `note` explains a change. */
 export type Constrain = (row: PriceRow, unit: bigint) => { value: bigint; note?: string };
@@ -158,6 +159,23 @@ export function PriceEditor(props: Props) {
               setNotes([]);
             }}
             onKeyDown={(e) => e.key === 'Enter' && apply()}
+            title={t('scrub.hint')}
+            onMouseDown={(e) => {
+              const fromText = text;
+              const from = parsed.ok ? parsed.value : shown(mode);
+              // Package mode moves by whole grosze per unit, so the total stays divisible.
+              const step = scrubStep(from, mode === 'package' ? row.qty : 1n);
+              const at = (steps: number) => nudged(from, steps, step, step);
+              startScrub(e, {
+                onSteps: (steps) => {
+                  setText(formatMoneyInput(at(steps), lang));
+                  setError(undefined);
+                  setNotes([]);
+                },
+                onCancel: () => setText(fromText),
+                label: (steps) => `${scrubMoney(at(steps), from, lang)} · ${t('scrub.esc')}`,
+              });
+            }}
           />
           <Button onClick={apply} disabled={!changed} data-testid="price-editor-apply">
             {t('edit.save')}

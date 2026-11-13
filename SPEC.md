@@ -307,6 +307,22 @@ pre-peak 1–3, sale) = **125 rows**.
   with a note saying why (raised to the minimum / lowered because of the maximum price). Applies to
   the editor panel, inline table edits and the base price card.
 - Unit **net** price is the editable one; gross is always derived.
+- An edit back to the calculated value is no edit: a shift that lands on the unshifted price removes the
+  shift, a manual price or base equal to the calculated one is dropped — nothing shows as edited.
+- **Undo / redo** (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z; buttons in the header): every change that decides the
+  prices — product inputs, settings, manual prices and shifts, amounts, flexible mode — not the language or
+  view preferences. One right-button drag, or quick changes of one field (< 1 s apart), are one step; a drag
+  cancelled with Esc leaves none. In a text field the keys undo the typed text instead. Up to 100 steps,
+  not kept between sessions.
+- **Right-button drag** over a value nudges it: right = more, left = less (vertical movement is ignored),
+  one step per 3 px, ×10 with Shift. The step is fixed for the drag at about 0.1 % of the starting value,
+  rounded to 1/2/5 × 10ⁿ units (22.57 zł → 2 gr; package totals: a multiple of the quantity). A label at
+  the cursor shows the value, its change and what is being changed; **Esc** cancels and restores the state
+  from before the drag. Only one drag runs at a time, and it ends as soon as the right button is no longer
+  held. The context menu opens only on a click without movement. Works in every numeric field (settings,
+  amount matrix, price editor, base price). On a price in the price list (matrix or flat table) the change
+  is live and **Ctrl** at the start of the drag decides: with Ctrl only that combination changes (override),
+  without it every price shifts — regardless of the "edit individually" checkbox.
 - The editor shows the row's discount from its month's retail price (PLN and %); with "edit individually"
   also the discount after the typed change. For the retail row itself it shows how `R_M` differs from the
   base price.

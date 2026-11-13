@@ -1,11 +1,11 @@
 import { Alert, Button, Checkbox, Group, Paper, Stack, Switch, Text, TextInput, Title, Tooltip } from '@mantine/core';
-import { type Dispatch, useMemo, useState } from 'react';
+import { type Dispatch, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { exportFileName } from '../core/filename';
 import { parseInteger, parseMoney } from '../core/money';
 import { calculate, clampToFlex, monthIds, shiftOverrides } from '../core/pricing';
 import { ceil } from '../core/rational';
-import type { MonthType, PriceRow, ProductInput } from '../core/types';
+import type { MonthType, Overrides, PriceRow, ProductInput } from '../core/types';
 import { confirmDialog, saveBinaryFile } from '../lib/fileio';
 import { AmountMatrix } from './components/AmountMatrix';
 import { Breakdown } from './components/Breakdown';
@@ -15,6 +15,7 @@ import { PriceTable } from './components/PriceTable';
 import { StepHeader } from './components/StepHeader';
 import { Summary } from './components/Summary';
 import { fieldId, issueMessage, money } from './format';
+import { type RowScrub, useScrubbing } from './scrub';
 import { type Action, type AppState, countOverrides } from './state';
 
 interface Props {
@@ -61,6 +62,13 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
     return issue ? issueMessage(issue, lang, t) : undefined;
   };
   const list = result?.ok ? result.list : undefined;
+  // During a drag the messages and the "edits removed" notice keep what they showed before it:
+  // appearing and disappearing on every step they would make the page jump.
+  const scrubbing = useScrubbing();
+  const held = useRef({ issues: list?.issues ?? [], cleared: state.clearedOverrides });
+  if (!scrubbing) held.current = { issues: list?.issues ?? [], cleared: state.clearedOverrides };
+  const shownIssues = held.current.issues;
+  const shownCleared = held.current.cleared;
   const selected = list?.rows.find((r) => r.key === selectedKey);
   const overrideCount = countOverrides(state.overrides);
 
@@ -94,14 +102,24 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
       : undefined;
 
   /** Individually: only this row changes. Otherwise the row's base shifts and all rows sharing it follow. */
-  const editRow = (key: string, requested?: bigint) => {
+  const editRow = (key: string, requested?: bigint, individually = state.editIndividually) => {
     const row = list?.rows.find((r) => r.key === key);
     const value = requested !== undefined && row && constrain ? constrain(row, requested).value : requested;
-    if (value === undefined || state.editIndividually || !row) {
-      dispatch({ type: 'setRowOverride', key, value });
+    if (value === undefined || individually || !row) {
+      // Typing the calculated price back removes the edit instead of storing an equal one.
+      dispatch({ type: 'setRowOverride', key, value: value === row?.calculatedNet ? undefined : value });
     } else {
       dispatch({ type: 'setOverrides', overrides: shiftOverrides(row, value, state.overrides, list) });
     }
+  };
+  // A drag outlives the render it started in: always edit through the latest state.
+  const editRef = useRef(editRow);
+  editRef.current = editRow;
+  const scrubFrom = useRef<Overrides>();
+  const scrub: RowScrub = {
+    begin: () => (scrubFrom.current = state.overrides),
+    set: (key, value, individually) => editRef.current(key, value, individually),
+    cancel: () => scrubFrom.current && dispatch({ type: 'setOverrides', overrides: scrubFrom.current }),
   };
   // In flexible mode sale and regular prices are linked: a reset clears every shift.
   const resetShift = (sale: boolean) =>
@@ -212,9 +230,9 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
         </Paper>
       </div>
 
-      {state.clearedOverrides > 0 && (
+      {shownCleared > 0 && (
         <Alert color="blue" variant="light" withCloseButton onClose={() => dispatch({ type: 'dismissCleared' })}>
-          {t('details.overridesCleared', { count: state.clearedOverrides })}
+          {t('details.overridesCleared', { count: shownCleared })}
         </Alert>
       )}
 
@@ -248,10 +266,12 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
             config={config}
             lang={lang}
             editable={state.showDetails}
-            onEditBase={(value) => dispatch({ type: 'setBaseOverride', value })}
+            onEditBase={(value) =>
+              dispatch({ type: 'setBaseOverride', value: value === list.baseCalculated ? undefined : value })
+            }
             constrainBase={constrainBase}
           />
-          <IssueList issues={list.issues} lang={lang} onGoTo={onGoTo} />
+          <IssueList issues={shownIssues} lang={lang} onGoTo={onGoTo} />
           </Stack>
           </div>
 
@@ -300,6 +320,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                 currentMonth={currentMonth}
                 onMonth={setMonth}
                 onSelect={(r) => setSelectedKey(r.key)}
+                scrub={scrub}
                 view={state.priceView}
                 onView={(value) => dispatch({ type: 'setPriceView', value })}
               />
@@ -350,6 +371,7 @@ export function CalculatorTab({ state, dispatch, onGoTo }: Props) {
                   lang={lang}
                   onSelect={(r) => setSelectedKey(r.key)}
                   onEdit={editRow}
+                  scrub={scrub}
                   constrain={constrain}
                 />
               </Stack>

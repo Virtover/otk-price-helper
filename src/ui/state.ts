@@ -1,9 +1,10 @@
-import { useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { DEFAULT_CONFIG } from '../config/defaults';
 import { configKey, parseConfigFile, serializeConfig } from '../config/io';
 import type { Locale } from '../core/money';
 import type { Config, Overrides } from '../core/types';
 import { readStored, writeStored } from '../lib/storage';
+import { currentScrub } from './scrub';
 
 export interface InputText {
   name: string;
@@ -169,8 +170,87 @@ export function initialState(): AppState {
   };
 }
 
+/** What undo / redo restore: everything that decides the prices (not view preferences or the language). */
+type Snapshot = Pick<AppState, 'config' | 'input' | 'overrides' | 'amounts' | 'flexible'>;
+const snapshotOf = (s: AppState): Snapshot => ({
+  config: s.config,
+  input: s.input,
+  overrides: s.overrides,
+  amounts: s.amounts,
+  flexible: s.flexible,
+});
+const snapshotKey = (s: Snapshot) => JSON.stringify(s, (_, v) => (typeof v === 'bigint' ? `${v}n` : v));
+
+export interface Tracked {
+  app: AppState;
+  /** States to go back to (oldest first) and forward to after an undo (most recent undo last). */
+  past: Snapshot[];
+  future: Snapshot[];
+  /** Group and time of the last recorded change: quick changes of the same thing are one step. */
+  group?: string;
+  at: number;
+}
+
+export type HistoryAction =
+  | { type: 'undo' }
+  | { type: 'redo' }
+  /** `merge`: always join the previous step of the same group (one drag), regardless of time. */
+  | { type: 'do'; action: Action; group: string; at: number; merge?: boolean };
+
+const HISTORY_LIMIT = 100;
+/** Changes of one group closer together than this (typing a number) are one undo step. */
+const MERGE_MS = 1000;
+
+/** Group of an action for merging: the same field or cell. */
+export const groupOf = (a: Action): string =>
+  a.type + ('field' in a ? `:${a.field}` : '') + ('key' in a ? `:${a.key}` : '');
+
+export function historyReducer(h: Tracked, a: HistoryAction): Tracked {
+  if (a.type === 'undo' || a.type === 'redo') {
+    const from = a.type === 'undo' ? h.past : h.future;
+    if (from.length === 0) return h;
+    const to = [...(a.type === 'undo' ? h.future : h.past), snapshotOf(h.app)];
+    const rest = from.slice(0, -1);
+    const app = { ...h.app, ...from[from.length - 1]!, clearedOverrides: 0 };
+    return a.type === 'undo' ? { app, past: rest, future: to, at: 0 } : { app, past: to, future: rest, at: 0 };
+  }
+  const app = reducer(h.app, a.action);
+  const before = snapshotKey(snapshotOf(h.app));
+  const after = snapshotKey(snapshotOf(app));
+  if (before === after) return { ...h, app };
+  const merge = h.past.length > 0 && h.group === a.group && (a.merge || a.at - h.at < MERGE_MS);
+  if (!merge) {
+    return { app, past: [...h.past, snapshotOf(h.app)].slice(-HISTORY_LIMIT), future: [], group: a.group, at: a.at };
+  }
+  // A merged step that ends where it started (a drag cancelled with Esc) is no step at all.
+  const past = snapshotKey(h.past[h.past.length - 1]!) === after ? h.past.slice(0, -1) : h.past;
+  return { app, past, future: [], group: a.group, at: a.at };
+}
+
 export function useAppState() {
-  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+  const [tracked, send] = useReducer(historyReducer, undefined, () => ({
+    app: initialState(),
+    past: [],
+    future: [],
+    at: 0,
+  }));
+  const state = tracked.app;
+  const dispatch = useCallback((action: Action) => {
+    const drag = currentScrub();
+    send({
+      type: 'do',
+      action,
+      group: drag === undefined ? groupOf(action) : `drag:${drag}`,
+      merge: drag !== undefined,
+      at: Date.now(),
+    });
+  }, []);
+  const history = {
+    canUndo: tracked.past.length > 0,
+    canRedo: tracked.future.length > 0,
+    undo: useCallback(() => send({ type: 'undo' }), []),
+    redo: useCallback(() => send({ type: 'redo' }), []),
+  };
   useEffect(() => {
     const stored: Stored = {
       lang: state.lang,
@@ -186,7 +266,7 @@ export function useAppState() {
     };
     writeStored(STORAGE_KEY, stored);
   }, [state]);
-  return [state, dispatch] as const;
+  return [state, dispatch, history] as const;
 }
 
 const DEFAULT_KEY = configKey(DEFAULT_CONFIG);

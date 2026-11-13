@@ -6,7 +6,8 @@ import { monthIds, rowKey } from '../../core/pricing';
 import { rat } from '../../core/rational';
 import { type MonthRetail, monthRetail, retailDiscount } from '../../core/retail';
 import type { Config, MonthType, PriceList, PriceRow } from '../../core/types';
-import { amountOff, money, monthLabel, pct, pctOff } from '../format';
+import { amountOff, money, monthLabel, pct, pctOff, scrubMoney } from '../format';
+import { type RowScrub, nudged, scrubStep, startScrub } from '../scrub';
 import type { PriceView } from '../state';
 import { STATUS_COLOR, statusBg } from './status';
 
@@ -41,6 +42,8 @@ interface Props {
   currentMonth: MonthType;
   onMonth: (m: MonthType) => void;
   onSelect: (row: PriceRow) => void;
+  /** Right-button drag on a price: Ctrl = this combination only, otherwise shift every price. */
+  scrub?: RowScrub;
   view: PriceView;
   onView: (view: PriceView) => void;
 }
@@ -57,7 +60,7 @@ export function retailRelation(list: PriceList, retail: MonthRetail, lang: Local
 }
 
 /** Package tiers × customer types for one month type. */
-export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, onSelect, view, onView }: Props) {
+export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, onSelect, scrub, view, onView }: Props) {
   const { t } = useTranslation();
   const byKey = new Map(list.rows.map((r) => [r.key, r]));
   const retail = monthRetail(list, config, month);
@@ -155,6 +158,26 @@ export function PriceMatrix({ list, config, lang, month, currentMonth, onMonth, 
                         py={4}
                         className={row.aboveMax ? 'price-cell above-max' : 'price-cell'}
                         onClick={() => onSelect(row)}
+                        onMouseDown={(e) => {
+                          if (!scrub) return;
+                          const from = row.netUnit;
+                          const step = scrubStep(from);
+                          let last = from;
+                          const started = startScrub(e, {
+                            onSteps: (steps, start) => {
+                              const next = nudged(from, steps, step, 1n);
+                              if (next !== last) scrub.set(row.key, (last = next), start.ctrl);
+                            },
+                            onCancel: scrub.cancel,
+                            label: (steps, start) =>
+                              [
+                                scrubMoney(nudged(from, steps, step, 1n), from, lang),
+                                t(start.ctrl ? 'scrub.one' : 'scrub.all'),
+                                t('scrub.esc'),
+                              ].join(' · '),
+                          });
+                          if (started) scrub.begin();
+                        }}
                         data-testid={`cell-${row.key}`}
                         data-status={row.status}
                         data-above-max={row.aboveMax || undefined}

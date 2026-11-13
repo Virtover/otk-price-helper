@@ -96,12 +96,27 @@ export function baseForRow(row: PriceRow, target: bigint): bigint {
 export function shiftOverrides(row: PriceRow, target: bigint, overrides: Overrides, list?: PriceList): Overrides {
   const { [row.key]: _dropped, ...rows } = overrides.rows;
   const isSale = row.month === SALE;
+  // Back at the price without any shift: remove the shift, so nothing shows as edited.
+  if (list && target === unshiftedPrice(list, row)) {
+    if (list.flex.requested) return { rows };
+    const { base, saleBase, ...rest } = overrides;
+    return isSale ? { ...rest, base, rows } : { ...rest, saleBase, rows };
+  }
   if (!list?.flex.requested) {
     const base = baseForRow(row, target);
     return isSale ? { ...overrides, rows, saleBase: base } : { ...overrides, rows, base };
   }
   const shifted = isSale ? shiftFlexSale(row, target, overrides, rows, list) : shiftFlexRegular(row, target, overrides, rows, list);
   return shifted ?? { ...overrides, rows: { ...rows, [row.key]: target } };
+}
+
+/** The row's price with no shift of the base (flexible mode: no shift of the top or the bottom either). */
+function unshiftedPrice(list: PriceList, row: PriceRow): bigint {
+  if (!list.flex.requested) return priceAtBase(row, row.month === SALE ? list.sale.baseCalculated : list.baseCalculated);
+  const limit = list.input.maxPriceGr;
+  const requested = limit !== undefined && limit < list.baseCalculated ? limit : list.baseCalculated;
+  const floorGr = ceil(list.floor);
+  return priceAtTop(list, row, requested < floorGr ? floorGr : requested);
 }
 
 /**
@@ -331,7 +346,8 @@ export function calculate(
     return { ok: false, issues: [...issues, { level: 'error', code: 'outOfRange', path: 'input.costGr' }] };
   }
   // A base of 0 or less is meaningless (and would divide by zero): ignore it.
-  const baseOverridden = overrides.base !== undefined && overrides.base > 0n;
+  // A base set to exactly the calculated one is not an edit.
+  const baseOverridden = overrides.base !== undefined && overrides.base > 0n && overrides.base !== baseCalculated;
   const base = baseOverridden ? overrides.base! : baseCalculated;
 
   // 5. Sale: deepest package × customer combination priced at s·K (after fees).
@@ -341,7 +357,8 @@ export function calculate(
   const saleBaseExact = amounts ? add(saleCost, rat(amounts.max)) : div(saleCost, salePercentDeep);
   const saleBaseCalculated = ceil(saleBaseExact);
   const saleDeepMultiplier = amounts ? rat(saleBaseCalculated - amounts.max, saleBaseCalculated) : salePercentDeep;
-  const saleBaseOverridden = overrides.saleBase !== undefined && overrides.saleBase > 0n;
+  const saleBaseOverridden =
+    overrides.saleBase !== undefined && overrides.saleBase > 0n && overrides.saleBase !== saleBaseCalculated;
   const saleBase = saleBaseOverridden ? overrides.saleBase! : saleBaseCalculated;
 
   // 6. Flexible mode. The top price is the lower of the price limit and the base actually used
@@ -403,7 +420,9 @@ export function calculate(
             ? mul(rat(refBase), multiplier)
             : rat(ceil(mul(rat(refBase), monthMultiplier)) - amountGr);
         const calculatedNet = ceil(exactNet);
-        const overrideNet = overrides.rows[key];
+        // A manual price equal to the calculated one is not an edit.
+        const ownNet = overrides.rows[key];
+        const overrideNet = ownNet === calculatedNet ? undefined : ownNet;
         const shownNet = overrideNet ?? calculatedNet;
         const derivedNet = smart ? shownNet : calculatedNet;
         const stale =
@@ -437,6 +456,7 @@ export function calculate(
           monthMultiplier,
           amountGr,
           netUnit: shownNet,
+          calculatedNet,
           grossUnit,
           netTotal,
           grossTotal,
@@ -558,8 +578,8 @@ export function calculate(
       saleRatio,
       low: regularLow,
       saleLow,
-      lowRaised: flexible && overrides.flexLow !== undefined,
-      saleLowRaised: flexible && overrides.flexSaleLow !== undefined,
+      lowRaised: flexible && gt(regularLow, floor),
+      saleLowRaised: flexible && gt(saleLow, saleCost),
     },
     topPrice: flexActive ? regularTop : baseUsed,
     topPriceGross: roundHalf(mul(rat(flexActive ? regularTop : baseUsed), vat)),

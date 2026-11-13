@@ -33,6 +33,11 @@ export function moneyOff(gr: bigint, lang: Locale): string {
   return `${gr > 0n ? '−' : '+'}${money(gr > 0n ? gr : -gr, lang)}`;
 }
 
+/** "22,77 zł (+0,20)" — the value set by a right-button drag and its change from the start. */
+export function scrubMoney(next: bigint, from: bigint, lang: Locale): string {
+  return `${money(next, lang)} (${amountOff(from - next, lang)})`;
+}
+
 /** A discount fraction as a signed change: 1/8 off → "−12,50 %". */
 export function pctOff(fraction: Rat, lang: Locale): string {
   if (fraction.n === 0n) return pct(fraction, lang);

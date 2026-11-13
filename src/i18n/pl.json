@@ -8,7 +8,9 @@
     "language": "Język",
     "themeLight": "Jasny motyw",
     "themeDark": "Ciemny motyw",
-    "tagline": "Ustal ceny w kilka sekund"
+    "tagline": "Ustal ceny w kilka sekund",
+    "undo": "Cofnij (Ctrl+Z)",
+    "redo": "Ponów (Ctrl+Y)"
   },
   "input": {
     "name": "Nazwa produktu",
@@ -63,7 +65,7 @@
     "unit": "szt.",
     "units": "{{qty}} szt.",
     "single": "1 szt.",
-    "clickHint": "Kliknij cenę, aby zobaczyć wyliczenie lub ją zmienić.",
+    "clickHint": "Kliknij cenę, aby zobaczyć wyliczenie lub ją zmienić. Przeciągnij prawym przyciskiem myszy w prawo / w lewo, aby przesunąć wszystkie ceny; z Ctrl — tylko tę kombinację; Shift — szybciej, Esc — anuluj.",
     "cellHint": "W komórce: netto za szt. / za cały pakiet, pod spodem brutto za szt. / za pakiet.",
     "view": {
       "price": "Ceny",
@@ -403,5 +405,12 @@
     "autoValue": "Z ustawień: {{value}}",
     "cellLabel": "Rabat kwotowy {{qty}} · {{customer}}",
     "warnings": "ostrzeżenia: {{count}}"
+  },
+  "scrub": {
+    "hint": "Przeciągnij prawym przyciskiem myszy w prawo / w lewo, aby zmienić wartość (z Shift — szybciej, Esc — anuluj).",
+    "priceHint": "Kliknij, aby wpisać. Przeciągnij prawym przyciskiem myszy w prawo / w lewo: przesuwa wszystkie ceny, z Ctrl — tylko tę kombinację (Shift — szybciej, Esc — anuluj).",
+    "all": "wszystkie ceny",
+    "one": "tylko ta kombinacja",
+    "esc": "Esc — anuluj"
   }
 }

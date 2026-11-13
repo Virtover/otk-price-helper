@@ -2,6 +2,8 @@ import { ActionIcon, Group, Stack, Text, TextInput, Tooltip, UnstyledButton } fr
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, formatMoney, formatMoneyInput, parseMoney } from '../../core/money';
+import { type ScrubStart, keepInPlace, nudged, scrubStep, startScrub } from '../scrub';
+import { scrubMoney } from '../format';
 
 interface Props {
   value: bigint;
@@ -13,26 +15,37 @@ interface Props {
   fw?: number;
   /** Adjusts the entered value to the allowed range; `note` explains a change. */
   constrain?: (value: bigint) => { value: bigint; note?: string };
+  /** Right-button drag; defaults to committing each value and restoring the old one on Esc. */
+  scrub?: {
+    begin: () => void;
+    set: (value: bigint, start: ScrubStart) => void;
+    cancel: () => void;
+    /** What the drag changes, shown next to the value. */
+    mode: (start: ScrubStart) => string;
+  };
 }
 
 /** A price that turns into an input on click. Enter/blur applies, Escape cancels. */
-export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 600, constrain }: Props) {
+export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 600, constrain, scrub }: Props) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState<string>();
   const [note, setNote] = useState<string>();
 
-  const commit = () => {
+  const commit = (input: HTMLElement) => {
     const r = parseMoney(text);
     if (!r.ok) return setError(t(`parse.${r.error}`));
     if (r.value <= 0n) return setError(t('issues.costNonPositive'));
     const c = constrain?.(r.value);
     const next = c?.value ?? r.value;
-    setNote(c && c.value !== r.value ? c.note : undefined);
-    setEditing(false);
-    setError(undefined);
-    if (next !== value) onCommit(next);
+    // The field is replaced by the price: what stays is the element around this component.
+    keepInPlace(input.closest('.mantine-TextInput-root')?.parentElement, () => {
+      setNote(c && c.value !== r.value ? c.note : undefined);
+      setEditing(false);
+      setError(undefined);
+      if (next !== value) onCommit(next);
+    });
   };
 
   if (editing) {
@@ -46,9 +59,9 @@ export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 
         data-testid={`${testId}-input`}
         aria-label={t('edit.netUnit')}
         onChange={(e) => setText(e.currentTarget.value)}
-        onBlur={commit}
+        onBlur={(e) => commit(e.currentTarget)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
+          if (e.key === 'Enter') commit(e.currentTarget);
           if (e.key === 'Escape') {
             setEditing(false);
             setError(undefined);
@@ -73,6 +86,29 @@ export function EditablePrice({ value, overridden, lang, onCommit, testId, fw = 
         fw={fw}
         style={{ borderBottom: '1px dashed var(--mantine-color-dimmed)', fontVariantNumeric: 'tabular-nums' }}
         onClick={startEditing}
+        title={t('scrub.priceHint')}
+        onMouseDown={(e) => {
+          const from = value;
+          const step = scrubStep(from);
+          const at = (steps: number) => {
+            const wanted = nudged(from, steps, step, 1n);
+            return constrain?.(wanted).value ?? wanted;
+          };
+          let last = from;
+          const wasOverridden = overridden;
+          if (startScrub(e, {
+            onSteps: (steps, start) => {
+              const next = at(steps);
+              if (next === last) return;
+              last = next;
+              if (scrub) scrub.set(next, start);
+              else onCommit(next);
+            },
+            onCancel: () => (scrub ? scrub.cancel() : onCommit(wasOverridden ? from : undefined)),
+            label: (steps, start) =>
+              [scrubMoney(at(steps), from, lang), scrub?.mode(start), t('scrub.esc')].filter(Boolean).join(' · '),
+          })) scrub?.begin();
+        }}
       >
         {formatMoney(value, lang)}
       </UnstyledButton>

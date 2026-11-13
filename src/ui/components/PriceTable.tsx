@@ -6,6 +6,7 @@ import { type Rat, cmp, rat } from '../../core/rational';
 import { monthIds } from '../../core/pricing';
 import type { Config, PriceRow } from '../../core/types';
 import { customerLabel, monthLabel, moneyRat, pct } from '../format';
+import type { RowScrub } from '../scrub';
 import { EditablePrice } from './EditablePrice';
 import type { Constrain } from './PriceEditor';
 import { STATUS_COLOR, statusBg } from './status';
@@ -16,6 +17,8 @@ interface Props {
   lang: Locale;
   onSelect: (row: PriceRow) => void;
   onEdit: (key: string, value?: bigint) => void;
+  /** Right-button drag on a price: Ctrl = this combination only, otherwise shift every price. */
+  scrub?: RowScrub;
   constrain?: Constrain;
 }
 
@@ -67,7 +70,7 @@ const numeric = (r: PriceRow, col: Column): Rat | undefined => {
 };
 
 /** Flat, filterable and sortable list of every combination — same rows as the XLSX export. */
-export function PriceTable({ rows, config, lang, onSelect, onEdit, constrain }: Props) {
+export function PriceTable({ rows, config, lang, onSelect, onEdit, scrub, constrain }: Props) {
   const { t } = useTranslation();
   const [month, setMonth] = useState<string | null>(null);
   const [customer, setCustomer] = useState<string | null>(null);
@@ -147,6 +150,14 @@ export function PriceTable({ rows, config, lang, onSelect, onEdit, constrain }: 
                       lang={lang}
                       testId={`edit-${r.key}`}
                       onCommit={(v) => onEdit(r.key, v)}
+                      scrub={
+                        scrub && {
+                          begin: scrub.begin,
+                          set: (v, start) => scrub.set(r.key, v, start.ctrl),
+                          cancel: scrub.cancel,
+                          mode: (start) => t(start.ctrl ? 'scrub.one' : 'scrub.all'),
+                        }
+                      }
                       constrain={constrain && ((v) => constrain(r, v))}
                     />
                   </Group>

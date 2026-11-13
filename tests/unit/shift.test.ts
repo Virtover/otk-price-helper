@@ -92,3 +92,39 @@ describe('maximum price', () => {
     expect(calculate(withMax(0n), config()).ok).toBe(false);
   });
 });
+
+describe('edits back to the calculated price', () => {
+  const l = list(input(1000, 1000));
+
+  it('a shift back to the calculated price removes the shift', () => {
+    const r = row(l, '100|w2|pre1');
+    const moved = shiftOverrides(r, r.netUnit + 50n, { rows: {} }, l);
+    expect(moved.base).toBeDefined();
+    const shifted = list(input(1000, 1000), config(), moved);
+    const back = shiftOverrides(row(shifted, r.key), r.netUnit, moved, shifted);
+    expect(back.base).toBeUndefined();
+    expect(list(input(1000, 1000), config(), back).baseOverridden).toBe(false);
+  });
+
+  it('a sale shift back removes only the sale shift', () => {
+    const r = row(l, '1|retail|sale');
+    const back = shiftOverrides(r, r.netUnit, { rows: {}, base: 2300n, saleBase: 1600n }, l);
+    expect(back).toEqual({ rows: {}, base: 2300n });
+  });
+
+  it('in flexible mode a shift back to the unshifted price clears every shift', () => {
+    const r0 = calculate({ ...input(1000, 1000), maxPriceGr: 2000n }, config(), { rows: {} }, { flexible: true });
+    if (!r0.ok) throw new Error('failed');
+    const target = row(r0.list, '50|w1|peak');
+    const moved = shiftOverrides(target, target.netUnit - 30n, { rows: {} }, r0.list);
+    const r1 = calculate({ ...input(1000, 1000), maxPriceGr: 2000n }, config(), moved, { flexible: true });
+    if (!r1.ok) throw new Error('failed');
+    expect(shiftOverrides(row(r1.list, target.key), target.netUnit, moved, r1.list)).toEqual({ rows: {} });
+  });
+
+  it('an override equal to the calculated value is not an edit', () => {
+    const same = list(input(1000, 1000), config(), { rows: { '100|w2|pre1': 1795n }, base: 2257n });
+    expect(row(same, '100|w2|pre1')).toMatchObject({ overridden: false, status: 'ok', calculatedNet: 1795n });
+    expect(same.baseOverridden).toBe(false);
+  });
+});

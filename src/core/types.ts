@@ -111,6 +111,8 @@ export interface PriceRow {
   /** Amount mode: PLN discount of this package × customer, net per unit, grosze. */
   amountGr?: bigint;
   netUnit: bigint;
+  /** Net unit price without this row's own manual edit. */
+  calculatedNet: bigint;
   grossUnit: bigint;
   netTotal: bigint;
   grossTotal: bigint;

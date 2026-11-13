@@ -174,3 +174,34 @@ body {
     transition: none;
   }
 }
+
+/* Right-button drag over a value (ui/scrub.ts). */
+body.scrubbing,
+body.scrubbing * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+.scrub-target {
+  outline: 2px solid var(--mantine-color-brand-5);
+  outline-offset: -2px;
+}
+
+.scrub-label {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: #2b2824;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-mantine-color-scheme='dark'] .scrub-label {
+  background: #f1ede6;
+  color: #1f1d1a;
+}

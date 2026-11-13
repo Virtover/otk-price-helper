@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, cloneConfig } from '../../src/config/defaults';
 import { serializeConfig } from '../../src/config/io';
-import { type AppState, initialState, isDirty, reducer } from '../../src/ui/state';
+import { type AppState, type HistoryAction, type Tracked, groupOf, historyReducer, initialState, isDirty, reducer } from '../../src/ui/state';
 
 const base: AppState = {
   lang: 'pl',
@@ -146,5 +146,83 @@ describe('state remembered by an older app version', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('undo / redo', () => {
+  const start: Tracked = { app: base, past: [], future: [], at: 0 };
+  const act = (action: Parameters<typeof reducer>[1], at: number, merge = false): HistoryAction => ({
+    type: 'do',
+    action,
+    group: merge ? 'drag:1' : groupOf(action),
+    at,
+    merge,
+  });
+  const run = (h: Tracked, ...actions: HistoryAction[]) => actions.reduce(historyReducer, h);
+
+  it('undoes and redoes price edits step by step', () => {
+    const h = run(
+      start,
+      act({ type: 'setRowOverride', key: 'a', value: 5n }, 0),
+      act({ type: 'setBaseOverride', value: 7n }, 5000),
+    );
+    expect(h.past).toHaveLength(2);
+    const once = historyReducer(h, { type: 'undo' });
+    expect(once.app.overrides).toEqual({ rows: { a: 5n } });
+    const twice = historyReducer(once, { type: 'undo' });
+    expect(twice.app.overrides).toEqual({ rows: {} });
+    expect(historyReducer(twice, { type: 'undo' })).toBe(twice);
+    const again = run(twice, { type: 'redo' }, { type: 'redo' });
+    expect(again.app.overrides).toEqual({ rows: { a: 5n }, base: 7n });
+  });
+
+  it('a new change after an undo drops the redo steps', () => {
+    const h = run(start, act({ type: 'setBaseOverride', value: 7n }, 0), { type: 'undo' });
+    expect(h.future).toHaveLength(1);
+    expect(run(h, act({ type: 'setBaseOverride', value: 9n }, 100)).future).toEqual([]);
+  });
+
+  it('merges quick changes of the same field and a whole drag into one step', () => {
+    const typed = run(
+      start,
+      act({ type: 'setInput', field: 'cost', value: '1' }, 0),
+      act({ type: 'setInput', field: 'cost', value: '12' }, 300),
+      act({ type: 'setInput', field: 'cost', value: '12,5' }, 600),
+    );
+    expect(typed.past).toHaveLength(1);
+    expect(historyReducer(typed, { type: 'undo' }).app.input.cost).toBe('10');
+    const slow = run(start, act({ type: 'setInput', field: 'cost', value: '1' }, 0), act({ type: 'setInput', field: 'cost', value: '2' }, 5000));
+    expect(slow.past).toHaveLength(2);
+    const drag = run(
+      start,
+      act({ type: 'setBaseOverride', value: 2260n }, 0, true),
+      act({ type: 'setBaseOverride', value: 2270n }, 9000, true),
+    );
+    expect(drag.past).toHaveLength(1);
+  });
+
+  it('a drag that ends where it started (Esc) leaves no step', () => {
+    const h = run(
+      start,
+      act({ type: 'setBaseOverride', value: 2260n }, 0, true),
+      act({ type: 'setOverrides', overrides: { rows: {} } }, 100, true),
+    );
+    expect(h.past).toEqual([]);
+  });
+
+  it('ignores view preferences and the language', () => {
+    const h = run(start, act({ type: 'setLang', lang: 'en' }, 0), act({ type: 'setPriceView', value: 'percent' }, 10));
+    expect(h.past).toEqual([]);
+    expect(h.app.lang).toBe('en');
+  });
+
+  it('restores settings together with the manual edits they removed', () => {
+    const edited = run(start, act({ type: 'setRowOverride', key: 'a', value: 5n }, 0));
+    const changed = run(edited, act({ type: 'setConfig', config: { ...base.config, vatBp: 800 } }, 5000));
+    expect(changed.app.overrides).toEqual({ rows: {} });
+    const back = historyReducer(changed, { type: 'undo' });
+    expect(back.app.config.vatBp).toBe(2300);
+    expect(back.app.overrides).toEqual({ rows: { a: 5n } });
+    expect(back.app.clearedOverrides).toBe(0);
   });
 });

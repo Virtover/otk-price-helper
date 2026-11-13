@@ -24,7 +24,7 @@ type Tab = 'calculator' | 'settings';
 
 export function App() {
   const { t, i18n } = useTranslation();
-  const [state, dispatch] = useAppState();
+  const [state, dispatch, history] = useAppState();
   const [tab, setTab] = useState<Tab>('calculator');
   const { setColorScheme } = useMantineColorScheme();
   const scheme = useComputedColorScheme('light');
@@ -58,6 +58,22 @@ export function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [t]);
 
+  // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z): undo / redo price and settings changes.
+  // Text fields keep their own undo of the typed text.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== 'z' && key !== 'y') return;
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      if (key === 'y' || e.shiftKey) history.redo();
+      else history.undo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [history.undo, history.redo]);
+
   /** Switches to the tab holding the field and focuses it. */
   const goTo = (path: string) => {
     const amount = path.startsWith('amounts.');
@@ -87,6 +103,32 @@ export function App() {
               </div>
             </Group>
             <Group gap="xs" wrap="nowrap">
+              <Tooltip label={t('app.undo')}>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  radius="xl"
+                  aria-label={t('app.undo')}
+                  disabled={!history.canUndo}
+                  onClick={history.undo}
+                  data-testid="undo"
+                >
+                  ↶
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label={t('app.redo')}>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  radius="xl"
+                  aria-label={t('app.redo')}
+                  disabled={!history.canRedo}
+                  onClick={history.redo}
+                  data-testid="redo"
+                >
+                  ↷
+                </ActionIcon>
+              </Tooltip>
               <Tooltip label={themeLabel}>
                 <ActionIcon
                   variant="default"

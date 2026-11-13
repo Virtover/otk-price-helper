@@ -8,7 +8,9 @@
     "language": "Language",
     "themeLight": "Light theme",
     "themeDark": "Dark theme",
-    "tagline": "Set your prices in seconds"
+    "tagline": "Set your prices in seconds",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)"
   },
   "input": {
     "name": "Product name",
@@ -63,7 +65,7 @@
     "unit": "unit",
     "units": "{{qty}} pcs",
     "single": "1 pc",
-    "clickHint": "Click a price to see how it was calculated or to change it.",
+    "clickHint": "Click a price to see how it is calculated or to change it. Drag with the right mouse button right / left to shift every price; with Ctrl only this combination; Shift: faster, Esc: cancel.",
     "cellHint": "In a cell: net per unit / per whole package, gross per unit / per package below.",
     "view": {
       "price": "Prices",
@@ -403,5 +405,12 @@
     "autoValue": "From settings: {{value}}",
     "cellLabel": "Amount discount {{qty}} · {{customer}}",
     "warnings": "warnings: {{count}}"
+  },
+  "scrub": {
+    "hint": "Drag with the right mouse button right / left to change the value (Shift: faster, Esc: cancel).",
+    "priceHint": "Click to type. Drag with the right mouse button right / left: shifts every price, with Ctrl only this combination (Shift: faster, Esc: cancel).",
+    "all": "every price",
+    "one": "this combination only",
+    "esc": "Esc: cancel"
   }
 }
