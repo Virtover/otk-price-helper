@@ -420,9 +420,7 @@ export function calculate(
             ? mul(rat(refBase), multiplier)
             : rat(ceil(mul(rat(refBase), monthMultiplier)) - amountGr);
         const calculatedNet = ceil(exactNet);
-        // A manual price equal to the calculated one is not an edit.
-        const ownNet = overrides.rows[key];
-        const overrideNet = ownNet === calculatedNet ? undefined : ownNet;
+        const overrideNet = overrides.rows[key];
         const shownNet = overrideNet ?? calculatedNet;
         const derivedNet = smart ? shownNet : calculatedNet;
         const stale =

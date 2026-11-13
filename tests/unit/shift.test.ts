@@ -122,9 +122,9 @@ describe('edits back to the calculated price', () => {
     expect(shiftOverrides(row(r1.list, target.key), target.netUnit, moved, r1.list)).toEqual({ rows: {} });
   });
 
-  it('an override equal to the calculated value is not an edit', () => {
-    const same = list(input(1000, 1000), config(), { rows: { '100|w2|pre1': 1795n }, base: 2257n });
-    expect(row(same, '100|w2|pre1')).toMatchObject({ overridden: false, status: 'ok', calculatedNet: 1795n });
+  it('a base equal to the calculated one is not an edit; rows report their price without their own edit', () => {
+    const same = list(input(1000, 1000), config(), { rows: { '100|w2|pre1': 1800n }, base: 2257n });
     expect(same.baseOverridden).toBe(false);
+    expect(row(same, '100|w2|pre1')).toMatchObject({ overridden: true, netUnit: 1800n, calculatedNet: 1795n });
   });
 });
