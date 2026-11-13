@@ -2368,7 +2368,7 @@ dependencies = [
 
 [[package]]
 name = "otk-price-helper"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "tauri",
  "tauri-build",
